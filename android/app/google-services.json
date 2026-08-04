@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1050936980158",
+    "project_id": "neuroease-9d4e4",
+    "storage_bucket": "neuroease-9d4e4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1050936980158:android:0f301380b56994729b24ef",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA-4VHjO5H6dbS74YqTM127KrR9dCMfIzo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
