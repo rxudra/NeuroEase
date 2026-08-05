@@ -10,6 +10,7 @@ class AuthService {
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
+
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static bool _googleInitialized = false;
 
@@ -21,26 +22,77 @@ class AuthService {
     required String password,
     required String phoneNumber,
   }) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email.trim(),
-      password: password,
-    );
-    final user = credential.user;
-    if (user == null) {
-      throw FirebaseAuthException(
-        code: 'user-creation-failed',
-        message: 'Your account could not be created. Please try again.',
-      );
-    }
+    try {
+      debugPrint("========== SIGN UP STARTED ==========");
+      debugPrint("Email: $email");
 
-    await user.updateDisplayName(fullName.trim());
-    await _createUserDocument(
-      user,
-      fullName: fullName,
-      phoneNumber: phoneNumber,
-      provider: 'password',
-    );
-    return user;
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+
+      final user = credential.user;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+          code: 'user-creation-failed',
+          message: 'Your account could not be created.',
+        );
+      }
+
+      debugPrint("Firebase Authentication Success");
+      debugPrint("UID: ${user.uid}");
+
+      await user.updateDisplayName(fullName.trim());
+
+      debugPrint("Creating Firestore document...");
+
+      await _createUserDocument(
+        user,
+        fullName: fullName,
+        phoneNumber: phoneNumber,
+        provider: 'password',
+      );
+
+      debugPrint("Firestore document created.");
+      debugPrint("========== SIGN UP SUCCESS ==========");
+
+      return user;
+    } on FirebaseAuthException catch (e, s) {
+      debugPrint("");
+      debugPrint("========================================");
+      debugPrint("FIREBASE AUTH EXCEPTION");
+      debugPrint("Code: ${e.code}");
+      debugPrint("Message: ${e.message}");
+      debugPrint("Exception: $e");
+      debugPrintStack(stackTrace: s);
+      debugPrint("========================================");
+      debugPrint("");
+
+      rethrow;
+    } on FirebaseException catch (e, s) {
+      debugPrint("");
+      debugPrint("========================================");
+      debugPrint("FIREBASE EXCEPTION");
+      debugPrint("Plugin: ${e.plugin}");
+      debugPrint("Code: ${e.code}");
+      debugPrint("Message: ${e.message}");
+      debugPrintStack(stackTrace: s);
+      debugPrint("========================================");
+      debugPrint("");
+
+      rethrow;
+    } catch (e, s) {
+      debugPrint("");
+      debugPrint("========================================");
+      debugPrint("UNKNOWN EXCEPTION");
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: s);
+      debugPrint("========================================");
+      debugPrint("");
+
+      rethrow;
+    }
   }
 
   Future<User> signInWithEmail({
@@ -51,13 +103,16 @@ class AuthService {
       email: email.trim(),
       password: password,
     );
+
     final user = credential.user;
+
     if (user == null) {
       throw FirebaseAuthException(
         code: 'sign-in-failed',
-        message: 'We could not sign you in. Please try again.',
+        message: 'We could not sign you in.',
       );
     }
+
     return user;
   }
 
@@ -72,6 +127,7 @@ class AuthService {
       credential = await _auth.signInWithPopup(GoogleAuthProvider());
     } else {
       await _ensureGoogleInitialized();
+
       if (!_googleSignIn.supportsAuthenticate()) {
         throw UnsupportedError(
           'Google Sign-In is not supported on this device.',
@@ -79,13 +135,15 @@ class AuthService {
       }
 
       final googleUser = await _googleSignIn.authenticate();
+
       final googleAuthentication = googleUser.authentication;
+
       final idToken = googleAuthentication.idToken;
+
       if (idToken == null) {
         throw FirebaseAuthException(
           code: 'google-sign-in-failed',
-          message:
-              'Google did not provide an identity token. Please try again.',
+          message: 'Google did not return an ID token.',
         );
       }
 
@@ -95,11 +153,9 @@ class AuthService {
     }
 
     final user = credential.user;
+
     if (user == null) {
-      throw FirebaseAuthException(
-        code: 'google-sign-in-failed',
-        message: 'We could not sign you in with Google. Please try again.',
-      );
+      throw FirebaseAuthException(code: 'google-sign-in-failed');
     }
 
     await _createUserDocument(
@@ -108,6 +164,7 @@ class AuthService {
       phoneNumber: user.phoneNumber ?? '',
       provider: 'google',
     );
+
     return user;
   }
 
@@ -115,12 +172,17 @@ class AuthService {
     if (_googleInitialized) {
       await _googleSignIn.signOut();
     }
+
     await _auth.signOut();
   }
 
   Future<void> _ensureGoogleInitialized() async {
-    if (_googleInitialized) return;
+    if (_googleInitialized) {
+      return;
+    }
+
     await _googleSignIn.initialize();
+
     _googleInitialized = true;
   }
 
@@ -131,7 +193,9 @@ class AuthService {
     required String provider,
   }) async {
     final document = _firestore.collection('users').doc(user.uid);
+
     final snapshot = await document.get();
+
     final data = <String, dynamic>{
       'uid': user.uid,
       'email': user.email ?? '',
@@ -153,27 +217,38 @@ class AuthService {
       switch (error.code) {
         case 'invalid-email':
           return 'Please enter a valid email address.';
+
         case 'user-not-found':
         case 'wrong-password':
         case 'invalid-credential':
           return 'The email or password is incorrect.';
+
         case 'email-already-in-use':
           return 'An account already exists for this email address.';
+
         case 'weak-password':
           return 'Use a stronger password with at least 8 characters.';
+
         case 'network-request-failed':
           return 'Check your internet connection and try again.';
+
         case 'too-many-requests':
           return 'Too many attempts. Please wait and try again.';
+
         case 'operation-not-allowed':
           return 'This sign-in method is not enabled yet.';
+
         case 'account-exists-with-different-credential':
           return 'This email is already linked to another sign-in method.';
       }
+
       return error.message ?? 'Authentication failed. Please try again.';
     }
-    if (error is UnsupportedError)
+
+    if (error is UnsupportedError) {
       return error.message ?? 'This action is unavailable.';
+    }
+
     return 'Something went wrong. Please try again.';
   }
 }

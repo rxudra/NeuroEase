@@ -30,7 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signInWithEmail() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
     await _runAuthAction(
       () => _authService.signInWithEmail(
         email: emailController.text,
@@ -143,8 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: passwordController,
                   obscureText: obscurePassword,
                   validator: (value) {
-                    if (value == null || value.isEmpty)
+                    if (value == null || value.isEmpty) {
                       return 'Enter your password.';
+                    }
                     return null;
                   },
                   decoration: customDecoration(

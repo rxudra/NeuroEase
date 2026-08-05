@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/app_cards.dart';
 
 class DashboardSectionTitle extends StatelessWidget {
   const DashboardSectionTitle({
@@ -67,9 +68,9 @@ class DashboardQuickAction extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -81,29 +82,15 @@ class DashboardQuickAction extends StatelessWidget {
 }
 
 class DashboardCard extends StatelessWidget {
-  const DashboardCard({
-    required this.child,
-    this.onTap,
-    this.color,
-    super.key,
-  });
+  const DashboardCard({this.onTap, this.color, required this.child, super.key});
 
-  final Widget child;
   final VoidCallback? onTap;
   final Color? color;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: color,
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(padding: const EdgeInsets.all(20), child: child),
-      ),
-    );
+    return AppCard(onTap: onTap, color: color, child: child);
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'core/theme/app_theme.dart';
 import 'features/splash/screens/splash_screen.dart';
 
 Future<void> main() async {
@@ -18,10 +19,7 @@ class NeuroEaseApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'NeuroEase',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.theme,
       home: const SplashScreen(),
     );
   }
