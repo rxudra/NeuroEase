@@ -1,41 +1,71 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../backend/data/firestore_medication_service.dart';
+import '../../backend/repositories/medication_repository.dart';
 import '../models/medication_model.dart';
 
 class MedicationService {
-  MedicationService._private();
+  MedicationService._private() {
+    _init();
+  }
+
   static final MedicationService instance = MedicationService._private();
 
-  final List<MedicationModel> _store = [
-    MedicationModel(
-      id: 'med1',
-      name: 'Vitamin D',
-      dosage: '1000 IU',
-      type: 'Tablet',
-      frequency: 'Once',
-      times: [TimeOfDay(hour: 10, minute: 0)],
-      foodInstruction: 'After food',
-      notes: 'Take with breakfast',
-      startDate: DateTime.now().subtract(const Duration(days: 10)),
-      endDate: DateTime.now().add(const Duration(days: 20)),
-      isReminderEnabled: true,
-    ),
-    MedicationModel(
-      id: 'med2',
-      name: 'Amlodipine',
-      dosage: '5 mg',
-      type: 'Tablet',
-      frequency: 'Once',
-      times: [TimeOfDay(hour: 8, minute: 0)],
-      foodInstruction: 'Anytime',
-      notes: 'Monitor blood pressure',
-      startDate: DateTime.now().subtract(const Duration(days: 2)),
-      endDate: DateTime.now().add(const Duration(days: 365)),
-      isReminderEnabled: true,
-    ),
-  ];
+  final List<MedicationModel> _store = [];
 
   // track taken state per medication per date+time key
   final Set<String> _takenKeys = <String>{};
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final MedicationRepository _repo = FirestoreMedicationService();
+  StreamSubscription<List<MedicationModel>>? _sub;
+
+  void _init() {
+    // Listen for auth changes and attach/detach Firestore stream
+    _auth.authStateChanges().listen((user) {
+      _sub?.cancel();
+      _store.clear();
+      if (user != null) {
+        _sub = _repo.streamForUser(user.uid).listen((list) {
+          _store
+            ..clear()
+            ..addAll(list);
+        });
+      } else {
+        // fallback mock data for unauthenticated users
+        _store.addAll([
+          MedicationModel(
+            id: 'med1',
+            name: 'Vitamin D',
+            dosage: '1000 IU',
+            type: 'Tablet',
+            frequency: 'Once',
+            times: [TimeOfDay(hour: 10, minute: 0)],
+            foodInstruction: 'After food',
+            notes: 'Take with breakfast',
+            startDate: DateTime.now().subtract(const Duration(days: 10)),
+            endDate: DateTime.now().add(const Duration(days: 20)),
+            isReminderEnabled: true,
+          ),
+          MedicationModel(
+            id: 'med2',
+            name: 'Amlodipine',
+            dosage: '5 mg',
+            type: 'Tablet',
+            frequency: 'Once',
+            times: [TimeOfDay(hour: 8, minute: 0)],
+            foodInstruction: 'Anytime',
+            notes: 'Monitor blood pressure',
+            startDate: DateTime.now().subtract(const Duration(days: 2)),
+            endDate: DateTime.now().add(const Duration(days: 365)),
+            isReminderEnabled: true,
+          ),
+        ]);
+      }
+    });
+  }
 
   List<MedicationModel> getAll() => List.unmodifiable(_store);
 
@@ -79,14 +109,39 @@ class MedicationService {
     }
   }
 
-  void addMedication(MedicationModel med) => _store.add(med);
-
-  void updateMedication(String id, MedicationModel updated) {
-    final idx = _store.indexWhere((m) => m.id == id);
-    if (idx >= 0) _store[idx] = updated;
+  Future<void> addMedication(MedicationModel med) async {
+    // Validation
+    if (med.name.trim().isEmpty ||
+        med.dosage.trim().isEmpty ||
+        med.times.isEmpty) {
+      throw ArgumentError(
+        'Medicine name, dosage and at least one timing are required',
+      );
+    }
+    final user = _auth.currentUser;
+    // Optimistic update for immediate UX
+    _store.add(med);
+    if (user != null) {
+      await _repo.add(user.uid, med);
+    }
   }
 
-  void deleteMedication(String id) => _store.removeWhere((m) => m.id == id);
+  Future<void> updateMedication(String id, MedicationModel updated) async {
+    final idx = _store.indexWhere((m) => m.id == id);
+    if (idx >= 0) _store[idx] = updated;
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.update(user.uid, updated);
+    }
+  }
+
+  Future<void> deleteMedication(String id) async {
+    _store.removeWhere((m) => m.id == id);
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.delete(user.uid, id);
+    }
+  }
 
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
   String _timeKey(TimeOfDay t) => '${t.hour}:${t.minute}';
