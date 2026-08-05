@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../auth/auth_service.dart';
+import '../../dashboard/dashboard_screen.dart';
 import '../../home/screens/welcome_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -26,31 +28,24 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeIn,
-    );
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
 
     _scaleAnimation = Tween<double>(
       begin: 0.8,
       end: 1.0,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOut,
-      ),
-    );
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
 
     _controller.forward();
 
     Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
 
+      final destination = AuthService().currentUser == null
+          ? const WelcomeScreen()
+          : const DashboardScreen();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (_) => const WelcomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => destination),
       );
     });
   }
@@ -70,10 +65,7 @@ class _SplashScreenState extends State<SplashScreen>
           opacity: _fadeAnimation,
           child: ScaleTransition(
             scale: _scaleAnimation,
-            child: Image.asset(
-              'assets/logos/neuroease_logo.png',
-              width: 280,
-            ),
+            child: Image.asset('assets/logos/neuroease_logo.png', width: 280),
           ),
         ),
       ),
