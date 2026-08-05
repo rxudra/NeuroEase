@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../core/constants/spacing.dart';
+
 import '../../medication/services/medication_service.dart';
 import '../models/patient_model.dart';
 import '../services/profile_service.dart';
+import '../../auth/auth_service.dart';
+import '../../backend/data/firestore_user_repository.dart';
+import '../../backend/repositories/user_repository.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/section_title.dart';
 import '../widgets/info_card.dart';
@@ -19,16 +25,96 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _service = ProfileService.instance;
+  final UserRepository _userRepo = FirestoreUserRepository();
+  bool _loading = true;
+  String? _error;
+  PatientModel? _patient;
 
   @override
   void initState() {
     super.initState();
-    _service.initMock();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final authUser =
+          AuthService().currentUser ?? FirebaseAuth.instance.currentUser;
+      if (authUser == null) {
+        // fallback to mock
+        _service.initMock();
+        _patient = _service.getPatient();
+      } else {
+        final uid = authUser.uid;
+        final fetched = await _userRepo.getById(uid);
+        if (fetched == null) {
+          // If user doc doesn't exist, fallback to mock and set id to uid
+          _service.initMock();
+          final mock = _service.getPatient();
+          final updated = PatientModel(
+            id: uid,
+            fullName: mock.fullName,
+            nickname: mock.nickname,
+            dob: mock.dob,
+            gender: mock.gender,
+            bloodGroup: mock.bloodGroup,
+            heightCm: mock.heightCm,
+            weightKg: mock.weightKg,
+            phone: mock.phone,
+            email: mock.email,
+            address: mock.address,
+            doctor: mock.doctor,
+            hospital: mock.hospital,
+            allergies: mock.allergies,
+            conditions: mock.conditions,
+            medications: mock.medications,
+            emergencyContacts: mock.emergencyContacts,
+            notes: mock.notes,
+            createdAt: mock.createdAt,
+            photoUrl: mock.photoUrl,
+          );
+          _patient = updated;
+          await _userRepo.save(updated);
+        } else {
+          _patient = fetched;
+        }
+      }
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveProfile(PatientModel updated) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await _userRepo.save(updated);
+      setState(() => _patient = updated);
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final PatientModel p = _service.getPatient();
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return Scaffold(body: Center(child: Text('Error: $_error')));
+    }
+
+    final PatientModel p = _patient ?? _service.getPatient();
     final meds = MedicationService.instance.getUpcomingForDate(DateTime.now());
 
     final history = [
@@ -48,21 +134,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ProfileHeader(patient: p),
-            const SizedBox(height: 12),
+            SizedBox(height: AppSpacing.md),
             SectionTitle(
               title: 'Personal information',
               actionLabel: 'Edit',
-              onAction: () {},
+              onAction: () async {
+                final edited = await showDialog<PatientModel>(
+                  context: context,
+                  builder: (ctx) {
+                    final nameCtl = TextEditingController(text: p.fullName);
+                    final phoneCtl = TextEditingController(text: p.phone);
+                    final emailCtl = TextEditingController(text: p.email);
+                    final addrCtl = TextEditingController(text: p.address);
+                    return AlertDialog(
+                      title: const Text('Edit profile'),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            TextField(
+                              controller: nameCtl,
+                              decoration: const InputDecoration(
+                                labelText: 'Full name',
+                              ),
+                            ),
+                            TextField(
+                              controller: phoneCtl,
+                              decoration: const InputDecoration(
+                                labelText: 'Phone',
+                              ),
+                            ),
+                            TextField(
+                              controller: emailCtl,
+                              decoration: const InputDecoration(
+                                labelText: 'Email',
+                              ),
+                            ),
+                            TextField(
+                              controller: addrCtl,
+                              decoration: const InputDecoration(
+                                labelText: 'Address',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            final updated = PatientModel(
+                              id: p.id,
+                              fullName: nameCtl.text.trim(),
+                              nickname: p.nickname,
+                              dob: p.dob,
+                              gender: p.gender,
+                              bloodGroup: p.bloodGroup,
+                              heightCm: p.heightCm,
+                              weightKg: p.weightKg,
+                              phone: phoneCtl.text.trim(),
+                              email: emailCtl.text.trim(),
+                              address: addrCtl.text.trim(),
+                              doctor: p.doctor,
+                              hospital: p.hospital,
+                              allergies: p.allergies,
+                              conditions: p.conditions,
+                              medications: p.medications,
+                              emergencyContacts: p.emergencyContacts,
+                              notes: p.notes,
+                              createdAt: p.createdAt,
+                              photoUrl: p.photoUrl,
+                            );
+                            Navigator.of(ctx).pop(updated);
+                          },
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (edited != null) {
+                  await _saveProfile(edited);
+                }
+              },
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             InfoCard(title: 'Phone', value: p.phone),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             InfoCard(title: 'Email', value: p.email),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             InfoCard(title: 'Address', value: p.address),
-            const SizedBox(height: 12),
+            SizedBox(height: AppSpacing.md),
             SectionTitle(title: 'Medical information'),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             Wrap(
               spacing: 12,
               runSpacing: 12,
@@ -73,9 +239,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 HealthCard(title: 'Medications', value: '${meds.length}'),
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: AppSpacing.md),
             SectionTitle(title: 'Emergency contacts'),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             Column(
               children: p.emergencyContacts
                   .map(
@@ -86,9 +252,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )
                   .toList(),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: AppSpacing.md),
             SectionTitle(title: 'Medical history'),
-            const SizedBox(height: 8),
+            SizedBox(height: AppSpacing.sm),
             MedicalTimeline(events: history),
             const SizedBox(height: 12),
             SectionTitle(title: 'Current medications'),

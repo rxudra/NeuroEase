@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/widgets/app_cards.dart';
+import '../../../core/widgets/stat_card.dart';
 
 class HealthCard extends StatelessWidget {
   const HealthCard({required this.title, required this.value, super.key});
@@ -8,21 +8,5 @@ class HealthCard extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.labelLarge),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => StatCard(title: title, value: value);
 }
