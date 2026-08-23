@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../ai_assistant/screens/memory_recall_screen.dart';
 import '../auth/auth_service.dart';
 import '../caregiver/screens/caregiver_home_screen.dart';
+import '../emergency/screens/emergency_home_screen.dart';
 import '../home/screens/welcome_screen.dart';
 import '../medication/models/medication_model.dart';
 import '../medication/services/medication_service.dart';
@@ -59,38 +60,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<void> _showSosDialog() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        icon: const Icon(
-          Icons.emergency_rounded,
-          color: AppColors.error,
-          size: 38,
-        ),
-        title: const Text('Need urgent help?'),
-        content: const Text(
-          'This will notify your emergency contacts when SOS is connected.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirmed != true) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('SOS contacts will be available soon.')),
+  void _openEmergencyScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EmergencyHomeScreen()),
     );
   }
 
@@ -336,7 +309,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             icon: Icons.emergency_rounded,
                             label: 'SOS',
                             color: AppColors.error,
-                            onTap: _showSosDialog,
+                            onTap: _openEmergencyScreen,
                           ),
                           DashboardQuickAction(
                             icon: Icons.calendar_today_outlined,

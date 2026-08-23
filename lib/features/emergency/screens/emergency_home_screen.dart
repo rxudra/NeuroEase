@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
 import '../models/emergency_event_model.dart';
@@ -18,6 +19,7 @@ class EmergencyHomeScreen extends StatefulWidget {
 
 class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
   int _countdown = 0;
+  Timer? _countdownTimer;
 
   @override
   void initState() {
@@ -25,25 +27,70 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
     EmergencyService.instance.initMock();
   }
 
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
   void _onActivated() {
+    _countdownTimer?.cancel();
     setState(() {
       _countdown = 10;
     });
-    EmergencyService.instance.addEvent(
-      EmergencyEventModel(
-        id: 'e${DateTime.now().millisecondsSinceEpoch}',
-        type: EmergencyEventType.sosTriggered,
-        title: 'SOS Activated',
-        details: 'User triggered SOS',
-        time: DateTime.now(),
-      ),
-    );
-    // simulate countdown finishing
-    Future.delayed(const Duration(seconds: 10), () {
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      if (_countdown > 1) {
+        setState(() {
+          _countdown -= 1;
+        });
+      } else {
+        timer.cancel();
+        _countdownTimer = null;
+        setState(() {
+          _countdown = 0;
+        });
+
+        EmergencyService.instance.addEvent(
+          EmergencyEventModel(
+            id: 'e${DateTime.now().millisecondsSinceEpoch}',
+            type: EmergencyEventType.sosTriggered,
+            title: 'Emergency Alert Triggered',
+            details: 'In-app emergency event recorded',
+            time: DateTime.now(),
+          ),
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              backgroundColor: Colors.red,
+              content: Text(
+                'Emergency Alert Triggered — In-app event recorded',
+              ),
+            ),
+          );
+        }
+      }
+    });
+  }
+
+  void _cancelAlert() {
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    if (mounted) {
       setState(() {
         _countdown = 0;
       });
-    });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Emergency alert cancelled.')),
+      );
+    }
   }
 
   @override
@@ -90,7 +137,8 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
             const SizedBox(height: 12),
             Center(child: SOSButton(onActivated: _onActivated)),
             const SizedBox(height: 12),
-            if (_countdown > 0) CountdownCard(secondsLeft: _countdown),
+            if (_countdown > 0)
+              CountdownCard(secondsLeft: _countdown, onCancel: _cancelAlert),
             const SizedBox(height: 12),
             Text('Live Status', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
