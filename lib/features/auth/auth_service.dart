@@ -21,7 +21,9 @@ class AuthService {
     required String email,
     required String password,
     required String phoneNumber,
+    String role = 'patient',
   }) async {
+    final validRole = (role == 'caregiver') ? 'caregiver' : 'patient';
     try {
       debugPrint("========== SIGN UP STARTED ==========");
       debugPrint("Email: $email");
@@ -52,6 +54,7 @@ class AuthService {
         fullName: fullName,
         phoneNumber: phoneNumber,
         provider: 'password',
+        role: validRole,
       );
 
       debugPrint("Firestore document created.");
@@ -191,10 +194,12 @@ class AuthService {
     required String fullName,
     required String phoneNumber,
     required String provider,
+    String role = 'patient',
   }) async {
     final document = _firestore.collection('users').doc(user.uid);
 
     final snapshot = await document.get();
+    final validRole = (role == 'caregiver') ? 'caregiver' : 'patient';
 
     final data = <String, dynamic>{
       'uid': user.uid,
@@ -202,6 +207,7 @@ class AuthService {
       'displayName': fullName.trim(),
       'phoneNumber': phoneNumber.trim(),
       'provider': provider,
+      'role': validRole,
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
@@ -210,6 +216,20 @@ class AuthService {
     }
 
     await document.set(data, SetOptions(merge: true));
+  }
+
+  Future<String> getUserRole(String uid) async {
+    if (uid.trim().isEmpty) return 'patient';
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      if (!doc.exists || doc.data() == null) return 'patient';
+      final role = doc.data()?['role'] as String?;
+      if (role == 'caregiver') return 'caregiver';
+      if (role == 'patient') return 'patient';
+      return 'patient';
+    } catch (_) {
+      return 'patient';
+    }
   }
 
   static String messageFor(Object error) {

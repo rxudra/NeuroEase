@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/navigation/app_shell.dart';
+import '../auth_gate.dart';
 import '../auth_service.dart';
 import '../forgot_password/forgot_password_screen.dart';
 import '../signup/signup_screen.dart';
@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await action();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AppShell()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
       );
     } catch (error) {

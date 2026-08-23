@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../ai_assistant/screens/memory_recall_screen.dart';
+import '../auth/auth_gate.dart';
 import '../auth/auth_service.dart';
-import '../caregiver/screens/caregiver_home_screen.dart';
 import '../emergency/screens/emergency_home_screen.dart';
-import '../home/screens/welcome_screen.dart';
 import '../medication/models/medication_model.dart';
 import '../medication/services/medication_service.dart';
 import '../notifications/screens/notification_center_screen.dart';
@@ -47,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await _authService.signOut();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
       );
     } catch (error) {
@@ -273,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const DashboardSectionTitle(title: 'Quick actions'),
                       const SizedBox(height: 12),
                       GridView.count(
-                        crossAxisCount: isWide ? 6 : 3,
+                        crossAxisCount: isWide ? 5 : 3,
                         mainAxisSpacing: 12,
                         crossAxisSpacing: 12,
                         shrinkWrap: true,
@@ -316,19 +315,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             label: 'Schedule',
                             color: AppColors.primaryLight,
                             onTap: () => widget.onSelectTab?.call(3),
-                          ),
-                          DashboardQuickAction(
-                            icon: Icons.people_outline_rounded,
-                            label: 'Caregiver',
-                            color: AppColors.secondary,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const CaregiverHomeScreen(),
-                                ),
-                              );
-                            },
                           ),
                         ],
                       ),

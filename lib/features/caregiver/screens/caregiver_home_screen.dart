@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
+import '../../auth/auth_gate.dart';
+import '../../auth/auth_service.dart';
 import '../../emergency/screens/emergency_home_screen.dart';
 import '../models/alert_model.dart';
 import '../models/family_member_model.dart';
@@ -362,6 +364,19 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
             icon: const Icon(Icons.person_add),
             tooltip: 'Link Patient',
             onPressed: _showLinkPatientDialog,
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            tooltip: 'Log out',
+            onPressed: () async {
+              await AuthService().signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const AuthGate()),
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),

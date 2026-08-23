@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/navigation/app_shell.dart';
+import '../auth_gate.dart';
 import '../auth_service.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -23,6 +23,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool obscureConfirmPassword = true;
   bool agree = false;
   bool isLoading = false;
+  String _selectedRole = 'patient';
 
   @override
   void dispose() {
@@ -52,13 +53,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
         email: _emailController.text,
         password: _passwordController.text,
         phoneNumber: _phoneController.text,
+        role: _selectedRole,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Account created successfully.')),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AppShell()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
       );
     } catch (error) {
@@ -98,7 +100,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   'Create your NeuroEase account.',
                   style: TextStyle(fontSize: 17, color: Colors.grey),
                 ),
-                const SizedBox(height: 35),
+                const SizedBox(height: 25),
+                _buildRoleSelector(),
+                const SizedBox(height: 25),
                 _buildField(
                   controller: _fullNameController,
                   hint: 'Full Name',
@@ -279,5 +283,115 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return 'Enter a valid email address.';
     }
     return null;
+  }
+
+  Widget _buildRoleSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Who is this account for?',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _buildRoleCard(
+                role: 'patient',
+                title: 'Patient',
+                subtitle: 'Person living with dementia',
+                icon: Icons.person_outline,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildRoleCard(
+                role: 'caregiver',
+                title: 'Caregiver',
+                subtitle: 'Family member or caregiver',
+                icon: Icons.health_and_safety_outlined,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRoleCard({
+    required String role,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedRole == role;
+    const primaryColor = Colors.blue;
+
+    return InkWell(
+      onTap: isLoading ? null : () => setState(() => _selectedRole = role),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withValues(alpha: 0.08)
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? primaryColor : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? primaryColor : Colors.grey.shade700,
+                  size: 22,
+                ),
+                const Spacer(),
+                Icon(
+                  isSelected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: isSelected ? primaryColor : Colors.grey.shade400,
+                  size: 20,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? primaryColor : Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+                height: 1.2,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -2,10 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../auth/auth_service.dart';
-// dashboard import no longer needed here; AppShell will present the dashboard
-import '../../home/screens/welcome_screen.dart';
-import '../../../core/navigation/app_shell.dart';
+import '../../auth/auth_gate.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,22 +38,10 @@ class _SplashScreenState extends State<SplashScreen>
     Timer(const Duration(seconds: 3), () {
       if (!mounted) return;
 
-      final destination = AuthService().currentUser == null
-          ? const WelcomeScreen()
-          : null; // null => will navigate to AppShell below
-
-      if (destination != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => destination),
-        );
-      } else {
-        // Authenticated -> go to AppShell (bottom navigation)
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AppShell()),
-        );
-      }
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+      );
     });
   }
 
