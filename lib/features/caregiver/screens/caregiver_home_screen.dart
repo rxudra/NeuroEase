@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../emergency/screens/emergency_home_screen.dart';
 import '../models/alert_model.dart';
+import '../models/family_member_model.dart';
 import '../models/patient_status_model.dart';
 import '../services/caregiver_service.dart';
 import '../widgets/alert_card.dart';
@@ -23,6 +24,7 @@ class CaregiverHomeScreen extends StatefulWidget {
 class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   StreamSubscription<List<AlertModel>>? _alertsSub;
   StreamSubscription<List<PatientStatusModel>>? _patientsSub;
+  StreamSubscription<List<FamilyMemberModel>>? _familySub;
 
   @override
   void initState() {
@@ -33,12 +35,16 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     _patientsSub = CaregiverService.instance.patientsStream.listen((_) {
       if (mounted) setState(() {});
     });
+    _familySub = CaregiverService.instance.familyStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _alertsSub?.cancel();
     _patientsSub?.cancel();
+    _familySub?.cancel();
     super.dispose();
   }
 
@@ -203,6 +209,143 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     );
   }
 
+  void _showAddEditFamilyMemberDialog([FamilyMemberModel? existing]) {
+    final isEditing = existing != null;
+    final nameController = TextEditingController(text: existing?.name ?? '');
+    final relController = TextEditingController(
+      text: existing?.relationship ?? '',
+    );
+    final phoneController = TextEditingController(text: existing?.phone ?? '');
+    String roleValue =
+        (existing?.role == 'Primary' || existing?.role == 'Secondary')
+        ? existing!.role
+        : 'Primary';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(isEditing ? 'Edit Family Member' : 'Add Family Member'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: relController,
+                  decoration: const InputDecoration(
+                    labelText: 'Relationship (e.g. Daughter, Son, Spouse)',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.family_restroom),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.phone),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: roleValue,
+                  decoration: const InputDecoration(
+                    labelText: 'Priority / Role',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.star_outline),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Primary', child: Text('Primary')),
+                    DropdownMenuItem(
+                      value: 'Secondary',
+                      child: Text('Secondary'),
+                    ),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) {
+                      setDialogState(() => roleValue = val);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final rel = relController.text.trim();
+                final phone = phoneController.text.trim();
+                if (name.isNotEmpty) {
+                  final member = FamilyMemberModel(
+                    id:
+                        existing?.id ??
+                        'fam_${DateTime.now().millisecondsSinceEpoch}',
+                    name: name,
+                    relationship: rel.isNotEmpty ? rel : 'Family Member',
+                    phone: phone,
+                    role: roleValue,
+                  );
+                  if (isEditing) {
+                    await CaregiverService.instance.updateFamilyMember(member);
+                  } else {
+                    await CaregiverService.instance.addFamilyMember(member);
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                }
+              },
+              child: Text(isEditing ? 'Save' : 'Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteFamilyMember(FamilyMemberModel m) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Family Member'),
+        content: Text(
+          'Are you sure you want to delete ${m.name} from your Family Members?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () async {
+              await CaregiverService.instance.deleteFamilyMember(m.id);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = CaregiverService.instance;
@@ -309,7 +452,11 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
               ),
 
             const SizedBox(height: 12),
-            SectionHeader(title: 'Family Members'),
+            SectionHeader(
+              title: 'Family Members',
+              actionLabel: '+ Add',
+              onAction: () => _showAddEditFamilyMemberDialog(),
+            ),
             const SizedBox(height: 8),
             if (family.isEmpty)
               const EmptyState(title: 'No family members')
@@ -319,7 +466,11 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                     .map(
                       (m) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: FamilyCard(member: m),
+                        child: FamilyCard(
+                          member: m,
+                          onEdit: () => _showAddEditFamilyMemberDialog(m),
+                          onDelete: () => _confirmDeleteFamilyMember(m),
+                        ),
                       ),
                     )
                     .toList(),

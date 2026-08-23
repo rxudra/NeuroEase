@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../caregiver/models/alert_model.dart';
 import '../../caregiver/models/caregiver_model.dart';
 import '../../caregiver/models/caregiver_relationship_model.dart';
+import '../../caregiver/models/family_member_model.dart';
 import '../repositories/caregiver_repository.dart';
 
 class FirestoreCaregiverService implements CaregiverRepository {
@@ -174,5 +175,60 @@ class FirestoreCaregiverService implements CaregiverRepository {
         .collection('caregivers')
         .doc(caregiverUid)
         .delete();
+  }
+
+  CollectionReference<Map<String, dynamic>> _userFamilyMembers(String uid) =>
+      _firestore.collection('users').doc(uid).collection('family_members');
+
+  @override
+  Stream<List<FamilyMemberModel>> streamFamilyMembers(String uid) {
+    return _userFamilyMembers(uid).snapshots().map(
+      (snap) => snap.docs.map((d) {
+        final data = {...d.data(), 'id': d.id};
+        return FamilyMemberModel.fromMap(data, documentId: d.id);
+      }).toList(),
+    );
+  }
+
+  @override
+  Future<List<FamilyMemberModel>> getFamilyMembers(String uid) async {
+    final snap = await _userFamilyMembers(uid).get();
+    return snap.docs
+        .map(
+          (d) => FamilyMemberModel.fromMap({
+            ...d.data(),
+            'id': d.id,
+          }, documentId: d.id),
+        )
+        .toList();
+  }
+
+  @override
+  Future<void> addFamilyMember(String uid, FamilyMemberModel member) async {
+    final map = member.toMap();
+    final docId = member.id.isNotEmpty
+        ? member.id
+        : _userFamilyMembers(uid).doc().id;
+    final docRef = _userFamilyMembers(uid).doc(docId);
+    final writeMap = Map<String, dynamic>.from(map);
+    writeMap['id'] = docId;
+    writeMap['createdAt'] = FieldValue.serverTimestamp();
+    writeMap['updatedAt'] = FieldValue.serverTimestamp();
+    await docRef.set(writeMap, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> updateFamilyMember(String uid, FamilyMemberModel member) async {
+    final map = member.toMap();
+    final docRef = _userFamilyMembers(uid).doc(member.id);
+    final writeMap = Map<String, dynamic>.from(map);
+    writeMap.remove('createdAt');
+    writeMap['updatedAt'] = FieldValue.serverTimestamp();
+    await docRef.set(writeMap, SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteFamilyMember(String uid, String memberId) async {
+    await _userFamilyMembers(uid).doc(memberId).delete();
   }
 }

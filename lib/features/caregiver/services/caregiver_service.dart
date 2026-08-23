@@ -23,9 +23,9 @@ class CaregiverService {
   static final CaregiverService instance = CaregiverService._private();
 
   CaregiverModel caregiver = CaregiverModel(
-    id: 'cg1',
-    name: 'Priya Sharma',
-    phone: '+91 91111 11111',
+    id: '',
+    name: 'Caregiver',
+    phone: '',
     role: 'Primary Caregiver',
   );
 
@@ -44,6 +44,7 @@ class CaregiverService {
   StreamSubscription<List<AlertModel>>? _alertsSub;
   StreamSubscription<CaregiverModel?>? _profileSub;
   StreamSubscription<List<CaregiverRelationshipModel>>? _linksSub;
+  StreamSubscription<List<FamilyMemberModel>>? _familySub;
   final Map<String, StreamSubscription<List<EmergencyEventModel>>>
   _patientEmergencySubs = {};
 
@@ -53,13 +54,19 @@ class CaregiverService {
   final StreamController<List<PatientStatusModel>> _patientsStreamController =
       StreamController<List<PatientStatusModel>>.broadcast();
 
+  final StreamController<List<FamilyMemberModel>> _familyStreamController =
+      StreamController<List<FamilyMemberModel>>.broadcast();
+
   Stream<List<AlertModel>> get stream => _streamController.stream;
   Stream<List<PatientStatusModel>> get patientsStream =>
       _patientsStreamController.stream;
+  Stream<List<FamilyMemberModel>> get familyStream =>
+      _familyStreamController.stream;
 
   void _notify() {
     _streamController.add(List.unmodifiable(alerts));
     _patientsStreamController.add(List.unmodifiable(patients));
+    _familyStreamController.add(List.unmodifiable(family));
   }
 
   void _clearEmergencySubs() {
@@ -74,12 +81,42 @@ class CaregiverService {
       _alertsSub?.cancel();
       _profileSub?.cancel();
       _linksSub?.cancel();
+      _familySub?.cancel();
       _clearEmergencySubs();
       alerts.clear();
       patients.clear();
+      family.clear();
       relationshipLinks.clear();
 
       if (user != null) {
+        final resolvedName =
+            user.displayName != null && user.displayName!.trim().isNotEmpty
+            ? user.displayName!.trim()
+            : user.email != null && user.email!.trim().isNotEmpty
+            ? user.email!.split('@').first
+            : 'Caregiver';
+
+        caregiver = CaregiverModel(
+          id: user.uid,
+          name: resolvedName,
+          phone: user.phoneNumber ?? '',
+          role: 'Primary Caregiver',
+        );
+
+        _familySub = _repo
+            .streamFamilyMembers(user.uid)
+            .listen(
+              (list) {
+                family
+                  ..clear()
+                  ..addAll(list);
+                _notify();
+              },
+              onError: (_) {
+                _notify();
+              },
+            );
+
         _alertsSub = _repo
             .streamAlertsForUser(user.uid)
             .listen(
@@ -171,6 +208,12 @@ class CaregiverService {
               },
             );
       } else {
+        caregiver = CaregiverModel(
+          id: '',
+          name: 'Caregiver',
+          phone: '',
+          role: 'Primary Caregiver',
+        );
         // Fallback mock alerts for unauthenticated / demo mode
         alerts.addAll([
           AlertModel(
@@ -232,7 +275,7 @@ class CaregiverService {
       family.addAll([
         FamilyMemberModel(
           id: 'f1',
-          name: 'Priya Sharma',
+          name: 'Sunita Sharma',
           relationship: 'Daughter',
           phone: '+91 91111 11111',
           role: 'Primary',
@@ -317,6 +360,43 @@ class CaregiverService {
     final user = _auth.currentUser;
     if (user != null) {
       await _repo.saveCaregiverProfile(user.uid, profile);
+    }
+  }
+
+  Future<void> addFamilyMember(FamilyMemberModel member) async {
+    final idx = family.indexWhere((m) => m.id == member.id);
+    if (idx >= 0) {
+      family[idx] = member;
+    } else {
+      family.add(member);
+    }
+    _notify();
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.addFamilyMember(user.uid, member);
+    }
+  }
+
+  Future<void> updateFamilyMember(FamilyMemberModel member) async {
+    final idx = family.indexWhere((m) => m.id == member.id);
+    if (idx >= 0) {
+      family[idx] = member;
+    } else {
+      family.add(member);
+    }
+    _notify();
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.updateFamilyMember(user.uid, member);
+    }
+  }
+
+  Future<void> deleteFamilyMember(String memberId) async {
+    family.removeWhere((m) => m.id == memberId);
+    _notify();
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.deleteFamilyMember(user.uid, memberId);
     }
   }
 }
