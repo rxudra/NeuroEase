@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/navigation/app_shell.dart';
-import '../caregiver/screens/caregiver_home_screen.dart';
+import '../caregiver/screens/caregiver_shell.dart';
 import '../home/screens/welcome_screen.dart';
 import 'auth_service.dart';
 
@@ -38,7 +38,7 @@ class AuthGate extends StatelessWidget {
 
             final role = roleSnapshot.data ?? 'patient';
             if (role == 'caregiver') {
-              return const CaregiverHomeScreen();
+              return const CaregiverShell();
             }
 
             return const AppShell();
