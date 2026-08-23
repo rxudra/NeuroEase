@@ -17,6 +17,7 @@ class FamilyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
+      padding: EdgeInsets.zero,
       child: ListTile(
         leading: CircleAvatar(
           child: Text(member.name.isNotEmpty ? member.name[0] : '?'),

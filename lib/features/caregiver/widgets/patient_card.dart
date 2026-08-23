@@ -10,7 +10,14 @@ class PatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lastActiveStr = status.lastActive != null
+        ? (status.lastActive!.toIso8601String().length >= 16
+              ? status.lastActive!.toIso8601String().substring(11, 16)
+              : status.lastActive!.toIso8601String())
+        : 'N/A';
+
     return AppCard(
+      padding: EdgeInsets.zero,
       child: ListTile(
         onTap: onTap,
         leading: CircleAvatar(
@@ -23,9 +30,10 @@ class PatientCard extends StatelessWidget {
           ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         subtitle: Text(
-          '${status.online ? 'Online' : 'Offline'} • Last active ${status.lastActive != null ? '${status.lastActive}' : 'N/A'}',
+          '${status.online ? 'Online' : 'Offline'} • Last active $lastActiveStr',
         ),
         trailing: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(status.location),

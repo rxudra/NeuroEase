@@ -20,6 +20,7 @@ class AlertCard extends StatelessWidget {
     final isUnread = !alert.isRead;
 
     return AppCard(
+      padding: EdgeInsets.zero,
       child: Container(
         decoration: BoxDecoration(
           border: isCritical
