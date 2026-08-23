@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../backend/data/firestore_emergency_contact_service.dart';
+import '../../backend/data/firestore_emergency_event_service.dart';
 import '../../backend/repositories/emergency_contact_repository.dart';
+import '../../backend/repositories/emergency_event_repository.dart';
 import '../models/emergency_contact_model.dart';
 import '../models/emergency_event_model.dart';
 import '../models/emergency_status_model.dart';
@@ -20,7 +22,10 @@ class EmergencyService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final EmergencyContactRepository _repo = FirestoreEmergencyContactService();
+  final EmergencyEventRepository _eventRepo = FirestoreEmergencyEventService();
+
   StreamSubscription<List<EmergencyContactModel>>? _sub;
+  StreamSubscription<List<EmergencyEventModel>>? _eventSub;
 
   final StreamController<List<EmergencyContactModel>> _streamController =
       StreamController<List<EmergencyContactModel>>.broadcast();
@@ -34,13 +39,30 @@ class EmergencyService {
   void _init() {
     _auth.authStateChanges().listen((user) {
       _sub?.cancel();
+      _eventSub?.cancel();
       contacts.clear();
+      events.clear();
+
       if (user != null) {
         _sub = _repo
             .streamForUser(user.uid)
             .listen(
               (list) {
                 contacts
+                  ..clear()
+                  ..addAll(list);
+                _notify();
+              },
+              onError: (_) {
+                _notify();
+              },
+            );
+
+        _eventSub = _eventRepo
+            .streamForUser(user.uid)
+            .listen(
+              (list) {
+                events
                   ..clear()
                   ..addAll(list);
                 _notify();
@@ -67,28 +89,29 @@ class EmergencyService {
             priority: 2,
           ),
         ]);
+
+        events.addAll([
+          EmergencyEventModel(
+            id: 'e1',
+            type: EmergencyEventType.sosTriggered,
+            title: 'SOS Triggered',
+            details: 'User held SOS',
+            time: DateTime.now().subtract(const Duration(hours: 2)),
+          ),
+          EmergencyEventModel(
+            id: 'e2',
+            type: EmergencyEventType.locationShared,
+            title: 'Location Shared',
+            details: 'Shared to emergency contacts',
+            time: DateTime.now().subtract(
+              const Duration(hours: 1, minutes: 40),
+            ),
+          ),
+        ]);
+
         _notify();
       }
     });
-
-    if (events.isEmpty) {
-      events.addAll([
-        EmergencyEventModel(
-          id: 'e1',
-          type: EmergencyEventType.sosTriggered,
-          title: 'SOS Triggered',
-          details: 'User held SOS',
-          time: DateTime.now().subtract(const Duration(hours: 2)),
-        ),
-        EmergencyEventModel(
-          id: 'e2',
-          type: EmergencyEventType.locationShared,
-          title: 'Location Shared',
-          details: 'Shared to emergency contacts',
-          time: DateTime.now().subtract(const Duration(hours: 1, minutes: 40)),
-        ),
-      ]);
-    }
   }
 
   void initMock() {
@@ -98,7 +121,14 @@ class EmergencyService {
   List<EmergencyContactModel> getContacts() => List.unmodifiable(contacts);
   List<EmergencyEventModel> getEvents() => List.unmodifiable(events);
 
-  void addEvent(EmergencyEventModel e) => events.add(e);
+  Future<void> addEvent(EmergencyEventModel e) async {
+    events.insert(0, e);
+    _notify();
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _eventRepo.add(user.uid, e);
+    }
+  }
 
   Future<void> addContact(EmergencyContactModel c) async {
     final idx = contacts.indexWhere((existing) => existing.id == c.id);
