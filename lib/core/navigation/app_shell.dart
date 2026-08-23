@@ -7,26 +7,21 @@ import '../../features/profile/screens/profile_screen.dart';
 import '../../features/auth/auth_service.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.initialIndex = 0});
+
+  final int initialIndex;
 
   @override
   State<AppShell> createState() => _AppShellState();
 }
 
 class _AppShellState extends State<AppShell> {
-  int _index = 0;
-  final List<Widget> _pages = const [
-    DashboardScreen(),
-    MedicationScreen(),
-    AIHomeScreen(),
-    ScheduleHomeScreen(),
-    ProfileScreen(),
-  ];
+  late int _index;
 
   @override
   void initState() {
     super.initState();
-    // If user is not authenticated, show Dashboard which will redirect to Welcome
+    _index = widget.initialIndex;
     if (AuthService().currentUser == null) {
       _index = 0;
     }
@@ -40,8 +35,16 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      DashboardScreen(onSelectTab: _onTap),
+      const MedicationScreen(),
+      const AIHomeScreen(),
+      const ScheduleHomeScreen(),
+      const ProfileScreen(),
+    ];
+
     return Scaffold(
-      body: IndexedStack(index: _index, children: _pages),
+      body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: _onTap,
@@ -63,3 +66,4 @@ class _AppShellState extends State<AppShell> {
     );
   }
 }
+

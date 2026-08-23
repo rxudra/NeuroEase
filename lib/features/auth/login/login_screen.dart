@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_shell.dart';
 import '../auth_service.dart';
-import '../../dashboard/dashboard_screen.dart';
 import '../forgot_password/forgot_password_screen.dart';
 import '../signup/signup_screen.dart';
 
@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await action();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const AppShell()),
         (route) => false,
       );
     } catch (error) {

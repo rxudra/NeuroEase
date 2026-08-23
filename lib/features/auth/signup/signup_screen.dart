@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation/app_shell.dart';
 import '../auth_service.dart';
-import '../../dashboard/dashboard_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -58,7 +58,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SnackBar(content: Text('Account created successfully.')),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const AppShell()),
         (route) => false,
       );
     } catch (error) {
