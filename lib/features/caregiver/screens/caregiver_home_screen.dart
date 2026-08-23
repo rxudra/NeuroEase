@@ -13,6 +13,7 @@ import '../widgets/emergency_button.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/family_card.dart';
 import '../widgets/patient_card.dart';
+import 'caregiver_patient_detail_screen.dart';
 import '../widgets/section_header.dart';
 import '../widgets/statistic_tile.dart';
 
@@ -104,35 +105,6 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
               }
             },
             child: const Text('Link'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmUnlinkPatient(PatientStatusModel p) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Unlink Patient'),
-        content: Text(
-          'Are you sure you want to remove ${p.name} from your Caregiver Workspace?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-              foregroundColor: Theme.of(context).colorScheme.onError,
-            ),
-            onPressed: () async {
-              await CaregiverService.instance.unlinkPatient(p.patientId);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Unlink'),
           ),
         ],
       ),
@@ -427,7 +399,16 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         child: PatientCard(
                           status: p,
-                          onTap: () => _confirmUnlinkPatient(p),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CaregiverPatientDetailScreen(
+                                  patientStatus: p,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     )

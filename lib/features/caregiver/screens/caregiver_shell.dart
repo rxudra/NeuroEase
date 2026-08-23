@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'caregiver_home_screen.dart';
+import 'caregiver_patients_screen.dart';
 
 class CaregiverShell extends StatefulWidget {
   const CaregiverShell({super.key, this.initialIndex = 0});
@@ -30,11 +31,7 @@ class _CaregiverShellState extends State<CaregiverShell> {
   Widget build(BuildContext context) {
     final pages = [
       const CaregiverHomeScreen(),
-      const _CaregiverPlaceholderScreen(
-        title: 'Patients',
-        subtitle: 'Manage linked patients and monitor status',
-        icon: Icons.people_outline,
-      ),
+      const CaregiverPatientsScreen(),
       const _CaregiverPlaceholderScreen(
         title: 'Alerts',
         subtitle: 'View and manage critical caregiver alerts',
