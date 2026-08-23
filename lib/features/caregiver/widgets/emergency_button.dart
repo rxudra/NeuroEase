@@ -11,7 +11,10 @@ class EmergencyButton extends StatelessWidget {
       onPressed: onPressed,
       icon: const Icon(Icons.warning),
       label: const Text('SOS'),
-      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
+        minimumSize: const Size(0, 40),
+      ),
     );
   }
 }
