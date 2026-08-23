@@ -8,7 +8,8 @@ class EmptyState extends StatelessWidget {
   final String? subtitle;
 
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 24),
     child: SharedEmptyState(title: title, subtitle: subtitle),
   );
 }
