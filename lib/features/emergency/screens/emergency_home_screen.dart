@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/emergency_service.dart';
+import '../models/emergency_contact_model.dart';
 import '../models/emergency_event_model.dart';
 import '../widgets/sos_button.dart';
 import '../widgets/status_indicator.dart';
@@ -8,6 +9,7 @@ import '../widgets/countdown_card.dart';
 import '../widgets/contact_card.dart';
 import '../widgets/emergency_timeline.dart';
 import '../widgets/safety_card.dart';
+import 'add_edit_contact_screen.dart';
 import 'safety_tips_screen.dart';
 
 class EmergencyHomeScreen extends StatefulWidget {
@@ -20,15 +22,20 @@ class EmergencyHomeScreen extends StatefulWidget {
 class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
   int _countdown = 0;
   Timer? _countdownTimer;
+  StreamSubscription<List<EmergencyContactModel>>? _contactSub;
 
   @override
   void initState() {
     super.initState();
     EmergencyService.instance.initMock();
+    _contactSub = EmergencyService.instance.stream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _contactSub?.cancel();
     _countdownTimer?.cancel();
     super.dispose();
   }
@@ -90,6 +97,61 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Emergency alert cancelled.')),
       );
+    }
+  }
+
+  Future<void> _openAddContactScreen() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddEditContactScreen()),
+    );
+  }
+
+  Future<void> _openEditContactScreen(EmergencyContactModel contact) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => AddEditContactScreen(contact: contact)),
+    );
+  }
+
+  Future<void> _confirmDeleteContact(EmergencyContactModel contact) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Contact?'),
+        content: Text(
+          'Are you sure you want to remove ${contact.name} from your emergency contacts?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        await EmergencyService.instance.removeContact(contact.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('${contact.name} removed')));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete contact: $e')));
+      }
     }
   }
 
@@ -164,16 +226,31 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'Emergency Contacts',
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Emergency Contacts',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                TextButton.icon(
+                  onPressed: _openAddContactScreen,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Add Contact'),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             if (contacts.isEmpty)
-              Center(
-                child: Text(
-                  'No contacts',
-                  style: Theme.of(context).textTheme.bodyLarge,
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'No emergency contacts added yet.',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                  ),
                 ),
               )
             else
@@ -182,7 +259,11 @@ class _EmergencyHomeScreenState extends State<EmergencyHomeScreen> {
                     .map(
                       (c) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: ContactCard(contact: c),
+                        child: ContactCard(
+                          contact: c,
+                          onEdit: () => _openEditContactScreen(c),
+                          onDelete: () => _confirmDeleteContact(c),
+                        ),
                       ),
                     )
                     .toList(),
