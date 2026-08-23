@@ -22,6 +22,15 @@ class MedicationService {
   final MedicationRepository _repo = FirestoreMedicationService();
   StreamSubscription<List<MedicationModel>>? _sub;
 
+  final StreamController<List<MedicationModel>> _streamController =
+      StreamController<List<MedicationModel>>.broadcast();
+
+  Stream<List<MedicationModel>> get stream => _streamController.stream;
+
+  void _notify() {
+    _streamController.add(List.unmodifiable(_store));
+  }
+
   void _init() {
     // Listen for auth changes and attach/detach Firestore stream
     _auth.authStateChanges().listen((user) {
@@ -32,6 +41,7 @@ class MedicationService {
           _store
             ..clear()
             ..addAll(list);
+          _notify();
         });
       } else {
         // fallback mock data for unauthenticated users
@@ -42,7 +52,7 @@ class MedicationService {
             dosage: '1000 IU',
             type: 'Tablet',
             frequency: 'Once',
-            times: [TimeOfDay(hour: 10, minute: 0)],
+            times: [const TimeOfDay(hour: 10, minute: 0)],
             foodInstruction: 'After food',
             notes: 'Take with breakfast',
             startDate: DateTime.now().subtract(const Duration(days: 10)),
@@ -55,7 +65,7 @@ class MedicationService {
             dosage: '5 mg',
             type: 'Tablet',
             frequency: 'Once',
-            times: [TimeOfDay(hour: 8, minute: 0)],
+            times: [const TimeOfDay(hour: 8, minute: 0)],
             foodInstruction: 'Anytime',
             notes: 'Monitor blood pressure',
             startDate: DateTime.now().subtract(const Duration(days: 2)),
@@ -63,6 +73,7 @@ class MedicationService {
             isReminderEnabled: true,
           ),
         ]);
+        _notify();
       }
     });
   }
@@ -70,11 +81,16 @@ class MedicationService {
   List<MedicationModel> getAll() => List.unmodifiable(_store);
 
   List<MedicationModel> getActiveForDate(DateTime date) {
-    return _store
-        .where(
-          (m) => !_isBefore(date, m.endDate) && !_isAfter(date, m.startDate),
-        )
-        .toList();
+    final target = DateTime(date.year, date.month, date.day);
+    return _store.where((m) {
+      final start = DateTime(
+        m.startDate.year,
+        m.startDate.month,
+        m.startDate.day,
+      );
+      final end = DateTime(m.endDate.year, m.endDate.month, m.endDate.day);
+      return !target.isBefore(start) && !target.isAfter(end);
+    }).toList();
   }
 
   List<MedicationModel> getUpcomingForDate(DateTime date) =>
@@ -107,6 +123,7 @@ class MedicationService {
     } else {
       _takenKeys.add(key);
     }
+    _notify();
   }
 
   Future<void> addMedication(MedicationModel med) async {
@@ -121,6 +138,7 @@ class MedicationService {
     final user = _auth.currentUser;
     // Optimistic update for immediate UX
     _store.add(med);
+    _notify();
     if (user != null) {
       await _repo.add(user.uid, med);
     }
@@ -129,6 +147,7 @@ class MedicationService {
   Future<void> updateMedication(String id, MedicationModel updated) async {
     final idx = _store.indexWhere((m) => m.id == id);
     if (idx >= 0) _store[idx] = updated;
+    _notify();
     final user = _auth.currentUser;
     if (user != null) {
       await _repo.update(user.uid, updated);
@@ -137,6 +156,7 @@ class MedicationService {
 
   Future<void> deleteMedication(String id) async {
     _store.removeWhere((m) => m.id == id);
+    _notify();
     final user = _auth.currentUser;
     if (user != null) {
       await _repo.delete(user.uid, id);
@@ -145,7 +165,4 @@ class MedicationService {
 
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
   String _timeKey(TimeOfDay t) => '${t.hour}:${t.minute}';
-
-  bool _isBefore(DateTime a, DateTime b) => a.isBefore(b);
-  bool _isAfter(DateTime a, DateTime b) => a.isAfter(b);
 }

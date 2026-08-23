@@ -1,12 +1,61 @@
 import 'package:flutter/material.dart';
 import '../models/medication_model.dart';
+import '../services/medication_service.dart';
 import '../widgets/medicine_timeline.dart';
 import '../widgets/reminder_chip.dart';
+import 'add_medication_screen.dart';
 
 class MedicationDetailScreen extends StatelessWidget {
   const MedicationDetailScreen({required this.med, super.key});
 
   final MedicationModel med;
+
+  Future<void> _delete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Medication'),
+        content: Text('Are you sure you want to delete ${med.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        await MedicationService.instance.deleteMedication(med.id);
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${med.name} deleted')),
+        );
+        Navigator.pop(context, true);
+      } catch (e) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _edit(BuildContext context) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => AddMedicationScreen(med: med)),
+    );
+    if (updated == true && context.mounted) {
+      Navigator.pop(context, true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,8 +66,14 @@ class MedicationDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(med.name),
         actions: [
-          IconButton(onPressed: () {}, icon: const Icon(Icons.edit)),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.delete)),
+          IconButton(
+            onPressed: () => _edit(context),
+            icon: const Icon(Icons.edit),
+          ),
+          IconButton(
+            onPressed: () => _delete(context),
+            icon: const Icon(Icons.delete),
+          ),
         ],
       ),
       body: SingleChildScrollView(

@@ -3,7 +3,9 @@ import '../models/medication_model.dart';
 import '../services/medication_service.dart';
 
 class AddMedicationScreen extends StatefulWidget {
-  const AddMedicationScreen({super.key});
+  const AddMedicationScreen({this.med, super.key});
+
+  final MedicationModel? med;
 
   @override
   State<AddMedicationScreen> createState() => _AddMedicationScreenState();
@@ -21,6 +23,25 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
   String _food = 'Anytime';
   bool _reminder = true;
   final _notesController = TextEditingController();
+  var _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.med != null) {
+      final m = widget.med!;
+      _nameController.text = m.name;
+      _dosageController.text = m.dosage;
+      _type = m.type.isNotEmpty ? m.type : 'Tablet';
+      _frequency = m.frequency.isNotEmpty ? m.frequency : 'Once';
+      _time = m.times.isNotEmpty ? m.times.first : TimeOfDay.now();
+      _startDate = m.startDate;
+      _endDate = m.endDate;
+      _food = m.foodInstruction.isNotEmpty ? m.foodInstruction : 'Anytime';
+      _reminder = m.isReminderEnabled;
+      _notesController.text = m.notes;
+    }
+  }
 
   @override
   void dispose() {
@@ -55,31 +76,62 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
     if (d != null) setState(() => _endDate = d);
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSaving = true);
 
-    final med = MedicationModel(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      name: _nameController.text.trim(),
-      dosage: _dosageController.text.trim(),
-      type: _type,
-      frequency: _frequency,
-      times: [_time],
-      foodInstruction: _food,
-      notes: _notesController.text.trim(),
-      startDate: _startDate,
-      endDate: _endDate,
-      isReminderEnabled: _reminder,
-    );
+    try {
+      final isEditing = widget.med != null;
+      final med = MedicationModel(
+        id: isEditing
+            ? widget.med!.id
+            : DateTime.now().microsecondsSinceEpoch.toString(),
+        name: _nameController.text.trim(),
+        dosage: _dosageController.text.trim(),
+        type: _type,
+        frequency: _frequency,
+        times: [_time],
+        foodInstruction: _food,
+        notes: _notesController.text.trim(),
+        startDate: _startDate,
+        endDate: _endDate,
+        isReminderEnabled: _reminder,
+      );
 
-    MedicationService.instance.addMedication(med);
-    Navigator.pop(context);
+      if (isEditing) {
+        await MedicationService.instance.updateMedication(widget.med!.id, med);
+      } else {
+        await MedicationService.instance.addMedication(med);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing
+                ? 'Medication updated'
+                : 'Medication added successfully',
+          ),
+        ),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save medication: $e')));
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isEditing = widget.med != null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Medication')),
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Medication' : 'Add Medication'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -174,8 +226,14 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _save,
-                  child: const Text('Save'),
+                  onPressed: _isSaving ? null : _save,
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(isEditing ? 'Save Changes' : 'Save'),
                 ),
               ),
             ],

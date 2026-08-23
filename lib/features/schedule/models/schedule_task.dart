@@ -77,15 +77,31 @@ class ScheduleTask {
   };
 
   static ScheduleTask fromJson(Map<String, dynamic> json) {
-    final d = DateTime.parse(json['date'] as String);
-    final parts = (json['time'] as String).split(':');
+    DateTime parseDate(dynamic val) {
+      if (val == null) return DateTime.now();
+      if (val is DateTime) return val;
+      if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
+      try {
+        final dynamic t = val;
+        return t.toDate() as DateTime;
+      } catch (_) {
+        return DateTime.now();
+      }
+    }
+
+    final d = parseDate(json['date']);
+    final timeStr = (json['time'] as String? ?? '10:00');
+    final parts = timeStr.split(':');
+    final h = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 10) : 10;
+    final mm = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
+
     return ScheduleTask(
-      id: json['id'] as String,
-      title: json['title'] as String,
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       category: json['category'] as String? ?? 'General',
       date: d,
-      time: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
+      time: TimeOfDay(hour: h, minute: mm),
       repeat: RepeatType.values[(json['repeat'] as int?) ?? 0],
       priority: Priority.values[(json['priority'] as int?) ?? 1],
       completed: json['completed'] as bool? ?? false,
