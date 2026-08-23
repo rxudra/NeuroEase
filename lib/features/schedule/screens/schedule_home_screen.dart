@@ -7,6 +7,8 @@ import '../widgets/section_header.dart';
 import '../widgets/schedule_card.dart';
 import '../widgets/quick_action_tile.dart';
 import '../widgets/empty_state.dart';
+import 'add_task_screen.dart';
+import 'task_detail_screen.dart';
 
 class ScheduleHomeScreen extends StatefulWidget {
   const ScheduleHomeScreen({super.key});
@@ -89,7 +91,10 @@ class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
                   .map(
                     (t) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: ScheduleCard(task: t),
+                      child: ScheduleCard(
+                        task: t,
+                        onTap: () => _openDetails(context, t.id),
+                      ),
                     ),
                   )
                   .toList(),
@@ -135,14 +140,19 @@ class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
   }
 
   void _openAdd(BuildContext context, {String? prefill}) async {
-    final route = MaterialPageRoute(builder: (_) => const SizedBox());
-    // Not wiring navigation to AddTask by default; leave route creation as placeholder.
-    // The Add Task screen exists as lib/features/schedule/screens/add_task_screen.dart and can be wired by user.
-    Navigator.of(context).push(route);
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddTaskScreen(prefillCategory: prefill),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
-  void _openDetails(BuildContext context, String id) {
-    final route = MaterialPageRoute(builder: (_) => const SizedBox());
-    Navigator.of(context).push(route);
+  void _openDetails(BuildContext context, String id) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: id)),
+    );
+    if (mounted) setState(() {});
   }
 }
+

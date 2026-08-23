@@ -5,6 +5,8 @@ import '../widgets/reminder_progress_card.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/reminder_timeline.dart';
 import '../widgets/empty_state.dart';
+import 'add_reminder_screen.dart';
+import 'reminder_detail_screen.dart';
 
 class ReminderHomeScreen extends StatefulWidget {
   const ReminderHomeScreen({super.key});
@@ -32,6 +34,11 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reminders')),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAdd(context),
+        label: const Text('Add Reminder'),
+        icon: const Icon(Icons.add),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -49,7 +56,7 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
             SectionHeader(
               title: "Today's Reminders",
               actionLabel: 'Add',
-              onAction: () {},
+              onAction: () => _openAdd(context),
             ),
             const SizedBox(height: 8),
             if (reminders.isEmpty)
@@ -63,7 +70,10 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
                     .map(
                       (r) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: ReminderCard(reminder: r),
+                        child: ReminderCard(
+                          reminder: r,
+                          onTap: () => _openDetails(context, r.id),
+                        ),
                       ),
                     )
                     .toList(),
@@ -83,7 +93,10 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
                     .map(
                       (r) => Padding(
                         padding: const EdgeInsets.symmetric(vertical: 6),
-                        child: ReminderCard(reminder: r),
+                        child: ReminderCard(
+                          reminder: r,
+                          onTap: () => _openDetails(context, r.id),
+                        ),
                       ),
                     )
                     .toList(),
@@ -97,4 +110,19 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
       ),
     );
   }
+
+  void _openAdd(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AddReminderScreen()),
+    );
+    if (mounted) setState(() {});
+  }
+
+  void _openDetails(BuildContext context, String id) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReminderDetailScreen(reminderId: id)),
+    );
+    if (mounted) setState(() {});
+  }
 }
+

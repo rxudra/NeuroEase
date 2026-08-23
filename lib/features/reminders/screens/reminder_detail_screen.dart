@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/reminder_model.dart';
 import '../services/reminder_service.dart';
+import 'add_reminder_screen.dart';
 
 class ReminderDetailScreen extends StatefulWidget {
   const ReminderDetailScreen({required this.reminderId, super.key});
@@ -17,29 +18,31 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _rem = ReminderService.instance.getAll().firstWhere(
-      (r) => r.id == widget.reminderId,
-      orElse: () => ReminderModel(
-        id: 'na',
-        title: 'Unknown',
-        category: 'Custom',
-        date: DateTime.now(),
-        time: TimeOfDay.now(),
-        colorValue: Colors.blue.toARGB32(),
-      ),
-    );
+    _loadReminder();
+  }
+
+  void _loadReminder() {
+    final list = ReminderService.instance.getAll();
+    final idx = list.indexWhere((r) => r.id == widget.reminderId);
+    if (idx >= 0) {
+      _rem = list[idx];
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     if (_rem == null) {
-      return const Scaffold(body: Center(child: Text('Reminder not found')));
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reminder details')),
+        body: const Center(child: Text('Reminder not found')),
+      );
     }
     final r = _rem!;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reminder details'),
         actions: [
+          IconButton(onPressed: _edit, icon: const Icon(Icons.edit)),
           IconButton(onPressed: _delete, icon: const Icon(Icons.delete)),
         ],
       ),
@@ -76,22 +79,54 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     );
   }
 
+  Future<void> _edit() async {
+    if (_rem == null) return;
+    final updated = await Navigator.of(context).push<ReminderModel>(
+      MaterialPageRoute(builder: (_) => AddReminderScreen(existing: _rem)),
+    );
+    if (updated != null && mounted) {
+      setState(() => _rem = updated);
+    }
+  }
+
   void _toggleComplete() {
     ReminderService.instance.toggleComplete(widget.reminderId);
-    setState(
-      () => _rem = ReminderService.instance.getAll().firstWhere(
-        (r) => r.id == widget.reminderId,
+    if (mounted) {
+      setState(() => _loadReminder());
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Reminder?'),
+        content: const Text('Are you sure you want to delete this reminder?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
       ),
     );
+
+    if (confirmed == true && mounted) {
+      await ReminderService.instance.delete(widget.reminderId);
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 
-  void _delete() {
-    ReminderService.instance.delete(widget.reminderId);
-    Navigator.of(context).pop();
-  }
-
-  void _skip() {
-    ReminderService.instance.update(_rem!.copyWith(completed: false));
-    Navigator.of(context).pop();
+  Future<void> _skip() async {
+    if (_rem != null) {
+      await ReminderService.instance.update(_rem!.copyWith(completed: false));
+      if (mounted) Navigator.of(context).pop();
+    }
   }
 }
+

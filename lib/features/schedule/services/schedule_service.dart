@@ -1,11 +1,38 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../../backend/data/firestore_schedule_service.dart';
+import '../../backend/repositories/schedule_repository.dart';
 import '../models/schedule_task.dart';
 
 class ScheduleService {
-  ScheduleService._private();
+  ScheduleService._private() {
+    _init();
+  }
   static final ScheduleService instance = ScheduleService._private();
 
   final List<ScheduleTask> _tasks = [];
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ScheduleRepository _repo = FirestoreScheduleService();
+  StreamSubscription<List<ScheduleTask>>? _sub;
+
+  void _init() {
+    _auth.authStateChanges().listen((user) {
+      _sub?.cancel();
+      _tasks.clear();
+      if (user != null) {
+        _sub = _repo.streamForUser(user.uid).listen((list) {
+          _tasks
+            ..clear()
+            ..addAll(list);
+        });
+      } else {
+        initMock();
+      }
+    });
+  }
 
   void initMock() {
     if (_tasks.isNotEmpty) return;
@@ -61,25 +88,42 @@ class ScheduleService {
     return list.take(count).toList();
   }
 
-  void addTask(ScheduleTask t) {
+  Future<void> addTask(ScheduleTask t) async {
     _tasks.add(t);
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.add(user.uid, t);
+    }
   }
 
-  void updateTask(ScheduleTask updated) {
+  Future<void> updateTask(ScheduleTask updated) async {
     final idx = _tasks.indexWhere((t) => t.id == updated.id);
     if (idx >= 0) {
       _tasks[idx] = updated;
     }
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.update(user.uid, updated);
+    }
   }
 
-  void deleteTask(String id) {
+  Future<void> deleteTask(String id) async {
     _tasks.removeWhere((t) => t.id == id);
+    final user = _auth.currentUser;
+    if (user != null) {
+      await _repo.delete(user.uid, id);
+    }
   }
 
-  void toggleCompleted(String id) {
+  Future<void> toggleCompleted(String id) async {
     final idx = _tasks.indexWhere((t) => t.id == id);
     if (idx >= 0) {
-      _tasks[idx] = _tasks[idx].copyWith(completed: !_tasks[idx].completed);
+      final updated = _tasks[idx].copyWith(completed: !_tasks[idx].completed);
+      _tasks[idx] = updated;
+      final user = _auth.currentUser;
+      if (user != null) {
+        await _repo.update(user.uid, updated);
+      }
     }
   }
 
@@ -90,3 +134,4 @@ class ScheduleService {
     return done / tasks.length;
   }
 }
+

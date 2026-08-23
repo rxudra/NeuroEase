@@ -3,9 +3,10 @@ import '../../schedule/models/schedule_task.dart';
 import '../services/schedule_service.dart';
 
 class AddTaskScreen extends StatefulWidget {
-  const AddTaskScreen({this.existing, super.key});
+  const AddTaskScreen({this.existing, this.prefillCategory, super.key});
 
   final ScheduleTask? existing;
+  final String? prefillCategory;
 
   @override
   State<AddTaskScreen> createState() => _AddTaskScreenState();
@@ -22,6 +23,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   Priority _priority = Priority.medium;
   bool _notify = true;
   int _color = Colors.blue.toARGB32();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -39,6 +41,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       _color = e.colorValue;
     } else {
       _title = '';
+      if (widget.prefillCategory != null && widget.prefillCategory!.isNotEmpty) {
+        _category = widget.prefillCategory!;
+      }
     }
   }
 
@@ -172,28 +177,39 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     if (t != null) setState(() => _time = t);
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _saving) return;
     _formKey.currentState!.save();
-    final task = ScheduleTask(
-      id:
-          widget.existing?.id ??
-          DateTime.now().microsecondsSinceEpoch.toString(),
-      title: _title,
-      description: _description,
-      category: _category,
-      date: DateTime(_date.year, _date.month, _date.day),
-      time: _time,
-      repeat: _repeat,
-      priority: _priority,
-      colorValue: _color,
-      notificationEnabled: _notify,
-    );
-    if (widget.existing != null) {
-      ScheduleService.instance.updateTask(task);
-    } else {
-      ScheduleService.instance.addTask(task);
+    setState(() => _saving = true);
+    try {
+      final task = ScheduleTask(
+        id:
+            widget.existing?.id ??
+            DateTime.now().microsecondsSinceEpoch.toString(),
+        title: _title,
+        description: _description,
+        category: _category,
+        date: DateTime(_date.year, _date.month, _date.day),
+        time: _time,
+        repeat: _repeat,
+        priority: _priority,
+        colorValue: _color,
+        notificationEnabled: _notify,
+      );
+      if (widget.existing != null) {
+        await ScheduleService.instance.updateTask(task);
+      } else {
+        await ScheduleService.instance.addTask(task);
+      }
+      if (!mounted) return;
+      Navigator.of(context).pop(task);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error saving task: $e')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    Navigator.of(context).pop(task);
   }
 }
