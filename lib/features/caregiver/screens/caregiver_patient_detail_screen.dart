@@ -14,6 +14,8 @@ import '../models/caregiver_relationship_model.dart';
 import '../models/patient_status_model.dart';
 import '../services/caregiver_service.dart';
 
+import '../../health/screens/caregiver_patient_health_screen.dart';
+
 class CaregiverPatientDetailScreen extends StatefulWidget {
   const CaregiverPatientDetailScreen({required this.patientStatus, super.key});
 
@@ -127,6 +129,20 @@ class _CaregiverPatientDetailScreenState
       appBar: AppBar(
         title: Text(displayName),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.monitor_heart_outlined),
+            tooltip: 'Health Dashboard',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CaregiverPatientHealthScreen(
+                    initialPatientStatus: widget.patientStatus,
+                  ),
+                ),
+              );
+            },
+          ),
           PopupMenuButton<String>(
             onSelected: (val) {
               if (val == 'unlink') _confirmUnlink();
@@ -305,9 +321,7 @@ class _CaregiverPatientDetailScreenState
       );
     }
 
-    final ageStr = p.dob != DateTime.fromMillisecondsSinceEpoch(0)
-        ? '${p.age} years'
-        : 'Not recorded';
+    final ageStr = p.age != null ? '${p.age} years' : 'Not recorded';
 
     return _buildSectionCard(
       context,

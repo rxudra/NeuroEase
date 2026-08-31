@@ -9,4 +9,3 @@ class RemindersScreen extends StatelessWidget {
     return const ReminderHomeScreen();
   }
 }
-

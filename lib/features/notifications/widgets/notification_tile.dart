@@ -22,8 +22,20 @@ class NotificationTile extends StatelessWidget {
     }
   }
 
+  String? get _patientName {
+    if (item.metadata == null) return null;
+    final val =
+        item.metadata!['patientName'] ??
+        item.metadata!['patient_name'] ??
+        item.metadata!['patient'];
+    if (val is String && val.trim().isNotEmpty) return val.trim();
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final patientName = _patientName;
+
     return Semantics(
       label: 'Notification: ${item.title}',
       button: true,
@@ -45,7 +57,36 @@ class NotificationTile extends StatelessWidget {
               ? null
               : const TextStyle(fontWeight: FontWeight.w600),
         ),
-        subtitle: Text(item.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (patientName != null) ...[
+              const SizedBox(height: 2),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 12,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    patientName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.secondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+            ],
+            Text(item.body, maxLines: 2, overflow: TextOverflow.ellipsis),
+          ],
+        ),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../core/widgets/shared_empty_state.dart';
@@ -18,36 +19,66 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   String _category = 'All';
   bool _unreadOnly = false;
   bool _loading = true;
+  bool _hasError = false;
+  String _errorMessage = '';
   List<NotificationItem> _items = [];
+  StreamSubscription<List<NotificationItem>>? _streamSub;
 
   @override
   void initState() {
     super.initState();
+    _streamSub = NotificationService.instance.stream.listen(
+      (_) {
+        _load();
+      },
+      onError: (err) {
+        if (mounted) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = err.toString();
+            _loading = false;
+          });
+        }
+      },
+    );
     _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-    });
-    final cats = NotificationService.instance.categories();
-    if (!cats.contains(_category)) {
-      _category = 'All';
-    }
-    final res = await NotificationService.instance.fetch(
-      category: _category,
-      unreadOnly: _unreadOnly,
-      query: _searchController.text,
-    );
     if (!mounted) return;
     setState(() {
-      _items = res;
-      _loading = false;
+      _loading = true;
+      _hasError = false;
+      _errorMessage = '';
     });
+    try {
+      final cats = NotificationService.instance.categories();
+      if (!cats.contains(_category)) {
+        _category = 'All';
+      }
+      final res = await NotificationService.instance.fetch(
+        category: _category,
+        unreadOnly: _unreadOnly,
+        query: _searchController.text,
+      );
+      if (!mounted) return;
+      setState(() {
+        _items = res;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _hasError = true;
+        _errorMessage = e.toString();
+      });
+    }
   }
 
   @override
   void dispose() {
+    _streamSub?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -55,12 +86,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final categories = NotificationService.instance.categories();
+    final unreadCount = NotificationService.instance.unreadCount;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(
+          unreadCount > 0 ? 'Notifications ($unreadCount)' : 'Notifications',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.mark_email_read),
+            tooltip: 'Mark all as read',
             onPressed: () async {
               await NotificationService.instance.markAllRead();
               await _load();
@@ -125,6 +161,44 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
+                  : _hasError
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.error_outline,
+                              size: 48,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'Failed to load notifications',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            if (_errorMessage.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _errorMessage,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _load,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   : _items.isEmpty
                   ? const SharedEmptyState(
                       title: 'No notifications',
@@ -138,16 +212,33 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                         separatorBuilder: (context, index) => const Divider(),
                         itemBuilder: (ctx, i) {
                           final it = _items[i];
-                          return NotificationTile(
-                            item: it,
-                            onTap: () async {
-                              if (!it.read) {
-                                await NotificationService.instance.markRead(
-                                  it.id,
-                                );
-                              }
+                          return Dismissible(
+                            key: Key(it.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 20),
+                              color: Theme.of(context).colorScheme.error,
+                              child: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.white,
+                              ),
+                            ),
+                            onDismissed: (_) async {
+                              await NotificationService.instance.dismiss(it.id);
                               await _load();
                             },
+                            child: NotificationTile(
+                              item: it,
+                              onTap: () async {
+                                if (!it.read) {
+                                  await NotificationService.instance.markRead(
+                                    it.id,
+                                  );
+                                }
+                                await _load();
+                              },
+                            ),
                           );
                         },
                       ),

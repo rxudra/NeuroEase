@@ -60,36 +60,13 @@ class _SOSButtonState extends State<SOSButton>
     });
   }
 
-  void _complete() async {
+  void _complete() {
     _controller.stop();
     setState(() {
       _holding = false;
-    });
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Confirm Emergency'),
-          content: const Text('Are you sure you want to trigger SOS?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Confirm'),
-            ),
-          ],
-        );
-      },
-    );
-    if (confirmed == true) {
-      widget.onActivated();
-    }
-    setState(() {
       _count = 3;
     });
+    widget.onActivated();
   }
 
   @override
@@ -114,7 +91,7 @@ class _SOSButtonState extends State<SOSButton>
                 color: Colors.red,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.red.withValues(alpha: 51),
+                    color: Colors.red.withValues(alpha: 0.51),
                     blurRadius: 16,
                   ),
                 ],
@@ -143,6 +120,13 @@ class _SOSButtonState extends State<SOSButton>
                 ),
                 const SizedBox(width: 12),
                 OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 36),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ),
                   onPressed: _cancelHold,
                   child: const Text('Cancel'),
                 ),

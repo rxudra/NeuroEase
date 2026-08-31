@@ -37,12 +37,18 @@ class CaregiverRelationshipModel {
       }
     }
 
+    final pId = (m['patientId'] as String?)?.isNotEmpty == true
+        ? (m['patientId'] as String)
+        : (documentId != null && documentId.isNotEmpty)
+        ? documentId
+        : (m['id'] as String? ?? '');
+
     return CaregiverRelationshipModel(
       id: (documentId != null && documentId.isNotEmpty)
           ? documentId
           : (m['id'] as String? ?? ''),
       caregiverId: m['caregiverId'] as String? ?? '',
-      patientId: m['patientId'] as String? ?? '',
+      patientId: pId,
       relationship: m['relationship'] as String? ?? 'Primary Caregiver',
       createdAt: parseTime(m['createdAt']),
     );

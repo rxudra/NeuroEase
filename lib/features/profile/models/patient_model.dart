@@ -35,7 +35,7 @@ class PatientModel {
     required this.id,
     required this.fullName,
     this.nickname = '',
-    required this.dob,
+    this.dob,
     this.gender = '',
     this.bloodGroup = '',
     this.heightCm = 0,
@@ -61,7 +61,7 @@ class PatientModel {
   final String id;
   final String fullName;
   final String nickname;
-  final DateTime dob;
+  final DateTime? dob;
   final String gender;
   final String bloodGroup;
   final int heightCm;
@@ -83,7 +83,7 @@ class PatientModel {
     'id': id,
     'fullName': fullName,
     'nickname': nickname,
-    'dob': dob.toIso8601String(),
+    'dob': dob?.toIso8601String(),
     'gender': gender,
     'bloodGroup': bloodGroup,
     'heightCm': heightCm,
@@ -107,7 +107,9 @@ class PatientModel {
       id: m['id'] as String? ?? '',
       fullName: m['fullName'] as String? ?? '',
       nickname: m['nickname'] as String? ?? '',
-      dob: DateTime.tryParse(m['dob'] as String? ?? '') ?? DateTime.now(),
+      dob: m['dob'] != null && (m['dob'] as String).trim().isNotEmpty
+          ? DateTime.tryParse(m['dob'] as String)
+          : null,
       gender: m['gender'] as String? ?? '',
       bloodGroup: m['bloodGroup'] as String? ?? '',
       heightCm: (m['heightCm'] as num?)?.toInt() ?? 0,
@@ -133,13 +135,16 @@ class PatientModel {
     );
   }
 
-  int get age {
+  int? get age {
+    if (dob == null || dob == DateTime.fromMillisecondsSinceEpoch(0)) {
+      return null;
+    }
     final now = DateTime.now();
-    var age = now.year - dob.year;
-    if (now.month < dob.month ||
-        (now.month == dob.month && now.day < dob.day)) {
+    var age = now.year - dob!.year;
+    if (now.month < dob!.month ||
+        (now.month == dob!.month && now.day < dob!.day)) {
       age--;
     }
-    return age;
+    return age < 0 ? null : age;
   }
 }

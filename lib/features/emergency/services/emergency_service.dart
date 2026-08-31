@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../backend/data/firestore_emergency_contact_service.dart';
 import '../../backend/data/firestore_emergency_event_service.dart';
@@ -20,7 +21,15 @@ class EmergencyService {
   final List<EmergencyEventModel> events = [];
   EmergencyStatusModel status = EmergencyStatusModel();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? get _auth {
+    try {
+      return FirebaseAuth.instance;
+    } catch (e) {
+      debugPrint('[EmergencyService] FirebaseAuth init skipped: $e');
+      return null;
+    }
+  }
+
   final EmergencyContactRepository _repo = FirestoreEmergencyContactService();
   final EmergencyEventRepository _eventRepo = FirestoreEmergencyEventService();
 
@@ -37,7 +46,9 @@ class EmergencyService {
   }
 
   void _init() {
-    _auth.authStateChanges().listen((user) {
+    final auth = _auth;
+    if (auth == null) return;
+    auth.authStateChanges().listen((user) {
       _sub?.cancel();
       _eventSub?.cancel();
       contacts.clear();
@@ -124,7 +135,7 @@ class EmergencyService {
   Future<void> addEvent(EmergencyEventModel e) async {
     events.insert(0, e);
     _notify();
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _eventRepo.add(user.uid, e);
     }
@@ -138,7 +149,7 @@ class EmergencyService {
       contacts.add(c);
     }
     _notify();
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.add(user.uid, c);
     }
@@ -148,7 +159,7 @@ class EmergencyService {
     final idx = contacts.indexWhere((c) => c.id == id);
     if (idx >= 0) contacts[idx] = updated;
     _notify();
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.update(user.uid, updated);
     }
@@ -157,7 +168,7 @@ class EmergencyService {
   Future<void> removeContact(String id) async {
     contacts.removeWhere((c) => c.id == id);
     _notify();
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.delete(user.uid, id);
     }

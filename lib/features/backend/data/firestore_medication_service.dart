@@ -4,17 +4,30 @@ import '../../medication/models/medication_model.dart';
 import '../repositories/medication_repository.dart';
 
 class FirestoreMedicationService implements MedicationRepository {
-  FirestoreMedicationService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreMedicationService({this._firestore});
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  CollectionReference<Map<String, dynamic>> _userMeds(String uid) =>
-      _firestore.collection('users').doc(uid).collection('medications');
+  FirebaseFirestore? get _db {
+    if (_firestore != null) return _firestore;
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>>? _userMeds(String uid) {
+    final db = _db;
+    if (db == null || uid.isEmpty) return null;
+    return db.collection('users').doc(uid).collection('medications');
+  }
 
   @override
   Stream<List<MedicationModel>> streamForUser(String uid) {
-    return _userMeds(uid)
+    final col = _userMeds(uid);
+    if (col == null) return Stream.value([]);
+    return col
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
@@ -27,8 +40,10 @@ class FirestoreMedicationService implements MedicationRepository {
 
   @override
   Future<void> add(String uid, MedicationModel med) async {
+    final col = _userMeds(uid);
+    if (col == null) return;
     final map = med.toMap();
-    final docRef = _userMeds(uid).doc(med.id);
+    final docRef = col.doc(med.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap['createdAt'] = FieldValue.serverTimestamp();
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
@@ -37,8 +52,10 @@ class FirestoreMedicationService implements MedicationRepository {
 
   @override
   Future<void> update(String uid, MedicationModel med) async {
+    final col = _userMeds(uid);
+    if (col == null) return;
     final map = med.toMap();
-    final docRef = _userMeds(uid).doc(med.id);
+    final docRef = col.doc(med.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
     await docRef.set(writeMap, SetOptions(merge: true));
@@ -46,14 +63,16 @@ class FirestoreMedicationService implements MedicationRepository {
 
   @override
   Future<void> delete(String uid, String medId) async {
-    await _userMeds(uid).doc(medId).delete();
+    final col = _userMeds(uid);
+    if (col == null) return;
+    await col.doc(medId).delete();
   }
 
   @override
   Future<List<MedicationModel>> getAll(String uid) async {
-    final snap = await _userMeds(
-      uid,
-    ).orderBy('createdAt', descending: true).get();
+    final col = _userMeds(uid);
+    if (col == null) return [];
+    final snap = await col.orderBy('createdAt', descending: true).get();
     return snap.docs
         .map((d) => MedicationModel.fromMap({...d.data(), 'id': d.id}))
         .toList();

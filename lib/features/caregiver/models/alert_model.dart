@@ -16,6 +16,7 @@ class AlertModel {
     this.time,
     this.severity = 1,
     this.isRead = false,
+    this.isDismissed = false,
     this.patientId = '',
   });
 
@@ -26,6 +27,7 @@ class AlertModel {
   DateTime? time;
   int severity; // 1-5
   bool isRead;
+  bool isDismissed;
   String patientId;
 
   Map<String, dynamic> toMap() => {
@@ -34,8 +36,10 @@ class AlertModel {
     'type': type.name,
     'details': details,
     'time': time?.toIso8601String(),
+    'timestamp': time?.toIso8601String(),
     'severity': severity,
     'isRead': isRead,
+    'isDismissed': isDismissed,
     'patientId': patientId,
   };
 
@@ -70,9 +74,10 @@ class AlertModel {
       title: m['title'] as String? ?? '',
       type: parseType(m['type'] as String?),
       details: m['details'] as String? ?? '',
-      time: parseTime(m['time']),
+      time: parseTime(m['time'] ?? m['createdAt'] ?? m['timestamp']),
       severity: (m['severity'] as num?)?.toInt() ?? 1,
       isRead: m['isRead'] as bool? ?? false,
+      isDismissed: m['isDismissed'] as bool? ?? false,
       patientId: m['patientId'] as String? ?? '',
     );
   }

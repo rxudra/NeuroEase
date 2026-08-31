@@ -129,4 +129,3 @@ class _ReminderDetailScreenState extends State<ReminderDetailScreen> {
     }
   }
 }
-

@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+
 import '../../profile/services/profile_service.dart';
+import '../models/schedule_task.dart';
 import '../services/schedule_service.dart';
-import '../widgets/month_calendar.dart';
 import '../widgets/completion_progress.dart';
-import '../widgets/section_header.dart';
-import '../widgets/schedule_card.dart';
-import '../widgets/quick_action_tile.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/month_calendar.dart';
+import '../widgets/schedule_card.dart';
+import '../widgets/section_header.dart';
 import 'add_task_screen.dart';
 import 'task_detail_screen.dart';
 
@@ -19,12 +21,34 @@ class ScheduleHomeScreen extends StatefulWidget {
 
 class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
   DateTime _selected = DateTime.now();
+  StreamSubscription<List<ScheduleTask>>? _scheduleSub;
 
   @override
   void initState() {
     super.initState();
     ScheduleService.instance.initMock();
     ProfileService.instance.initMock();
+    _scheduleSub = ScheduleService.instance.stream.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _scheduleSub?.cancel();
+    super.dispose();
+  }
+
+  void _openAdd(BuildContext context) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddTaskScreen()));
+  }
+
+  void _openDetails(BuildContext context, String id) {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: id)));
   }
 
   @override
@@ -34,20 +58,22 @@ class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
     final completion = ScheduleService.instance.completionForDate(_selected);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Schedule')),
+      appBar: AppBar(title: const Text('Schedule & Reminders')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Today • ${_selected.toLocal().toIso8601String().split('T').first}',
+              'Date • ${_selected.toLocal().toIso8601String().split('T').first}',
               style: Theme.of(context).textTheme.labelLarge,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
-              'Good morning',
-              style: Theme.of(context).textTheme.headlineSmall,
+              'Daily Schedule Overview',
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             CompletionProgress(percent: completion),
@@ -56,14 +82,14 @@ class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
             const SizedBox(height: 12),
             SectionHeader(
               title: "Today's Schedule",
-              actionLabel: 'Add',
+              actionLabel: '+ Add Task',
               onAction: () => _openAdd(context),
             ),
             const SizedBox(height: 8),
             if (tasks.isEmpty)
               const EmptyState(
-                title: 'No tasks for today',
-                subtitle: 'Tap Quick Add to create one',
+                title: 'No tasks scheduled for this day',
+                subtitle: 'Tap + Add Task to create a reminder',
               )
             else
               Column(
@@ -79,80 +105,39 @@ class _ScheduleHomeScreenState extends State<ScheduleHomeScreen> {
                     )
                     .toList(),
               ),
-            const SizedBox(height: 12),
-            SectionHeader(
-              title: 'Upcoming',
-              actionLabel: 'View all',
-              onAction: () {},
-            ),
+            const SizedBox(height: 16),
+            SectionHeader(title: 'Upcoming Reminders'),
             const SizedBox(height: 8),
-            Column(
-              children: upcoming
-                  .map(
-                    (t) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: ScheduleCard(
-                        task: t,
-                        onTap: () => _openDetails(context, t.id),
+            if (upcoming.isEmpty)
+              const EmptyState(title: 'No upcoming reminders')
+            else
+              Column(
+                children: upcoming
+                    .map(
+                      (t) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: ListTile(
+                          leading: const Icon(Icons.calendar_today_outlined),
+                          title: Text(t.title),
+                          subtitle: Text(
+                            '${t.time.format(context)} • ${t.category}',
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _openDetails(context, t.id),
+                        ),
                       ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 12),
-            SectionHeader(title: 'Quick Add'),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                QuickActionTile(
-                  icon: Icons.medication,
-                  label: 'Medication',
-                  onTap: () => _openAdd(context, prefill: 'Medication'),
-                ),
-                QuickActionTile(
-                  icon: Icons.local_hospital,
-                  label: 'Appointment',
-                  onTap: () => _openAdd(context, prefill: 'Doctor Visit'),
-                ),
-                QuickActionTile(
-                  icon: Icons.task,
-                  label: 'Task',
-                  onTap: () => _openAdd(context, prefill: 'Personal'),
-                ),
-                QuickActionTile(
-                  icon: Icons.local_drink,
-                  label: 'Water',
-                  onTap: () => _openAdd(context, prefill: 'Hydration'),
-                ),
-                QuickActionTile(
-                  icon: Icons.fitness_center,
-                  label: 'Exercise',
-                  onTap: () => _openAdd(context, prefill: 'Exercise'),
-                ),
-              ],
-            ),
+                    )
+                    .toList(),
+              ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
-    );
-  }
-
-  void _openAdd(BuildContext context, {String? prefill}) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AddTaskScreen(prefillCategory: prefill),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openAdd(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Task'),
       ),
     );
-    if (mounted) setState(() {});
-  }
-
-  void _openDetails(BuildContext context, String id) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TaskDetailScreen(taskId: id)),
-    );
-    if (mounted) setState(() {});
   }
 }
-

@@ -4,17 +4,30 @@ import '../../emergency/models/emergency_contact_model.dart';
 import '../repositories/emergency_contact_repository.dart';
 
 class FirestoreEmergencyContactService implements EmergencyContactRepository {
-  FirestoreEmergencyContactService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreEmergencyContactService({this._firestore});
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  CollectionReference<Map<String, dynamic>> _userContacts(String uid) =>
-      _firestore.collection('users').doc(uid).collection('emergency_contacts');
+  FirebaseFirestore? get _db {
+    if (_firestore != null) return _firestore;
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>>? _userContacts(String uid) {
+    final db = _db;
+    if (db == null) return null;
+    return db.collection('users').doc(uid).collection('emergency_contacts');
+  }
 
   @override
   Stream<List<EmergencyContactModel>> streamForUser(String uid) {
-    return _userContacts(uid)
+    final col = _userContacts(uid);
+    if (col == null) return Stream.value([]);
+    return col
         .orderBy('priority', descending: false)
         .snapshots()
         .map(
@@ -27,8 +40,10 @@ class FirestoreEmergencyContactService implements EmergencyContactRepository {
 
   @override
   Future<void> add(String uid, EmergencyContactModel contact) async {
+    final col = _userContacts(uid);
+    if (col == null) return;
     final map = contact.toMap();
-    final docRef = _userContacts(uid).doc(contact.id);
+    final docRef = col.doc(contact.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap['createdAt'] = FieldValue.serverTimestamp();
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
@@ -37,8 +52,10 @@ class FirestoreEmergencyContactService implements EmergencyContactRepository {
 
   @override
   Future<void> update(String uid, EmergencyContactModel contact) async {
+    final col = _userContacts(uid);
+    if (col == null) return;
     final map = contact.toMap();
-    final docRef = _userContacts(uid).doc(contact.id);
+    final docRef = col.doc(contact.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
     await docRef.set(writeMap, SetOptions(merge: true));
@@ -46,14 +63,16 @@ class FirestoreEmergencyContactService implements EmergencyContactRepository {
 
   @override
   Future<void> delete(String uid, String contactId) async {
-    await _userContacts(uid).doc(contactId).delete();
+    final col = _userContacts(uid);
+    if (col == null) return;
+    await col.doc(contactId).delete();
   }
 
   @override
   Future<List<EmergencyContactModel>> getAll(String uid) async {
-    final snap = await _userContacts(
-      uid,
-    ).orderBy('priority', descending: false).get();
+    final col = _userContacts(uid);
+    if (col == null) return [];
+    final snap = await col.orderBy('priority', descending: false).get();
     return snap.docs
         .map((d) => EmergencyContactModel.fromMap({...d.data(), 'id': d.id}))
         .toList();

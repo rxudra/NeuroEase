@@ -2,16 +2,14 @@ class EmergencyStatusModel {
   EmergencyStatusModel({
     this.gpsOk = true,
     this.internetOk = true,
-    this.watchConnected = true,
-    this.batteryPct = 85,
-    this.heartRate = 72,
-    this.spo2 = 98,
+    this.sensorConnected = false,
+    this.sensorDeviceName = 'No Sensor Connected',
+    this.batteryPct = 0,
   });
 
   bool gpsOk;
   bool internetOk;
-  bool watchConnected;
+  bool sensorConnected;
+  String sensorDeviceName;
   int batteryPct;
-  int heartRate;
-  int spo2;
 }

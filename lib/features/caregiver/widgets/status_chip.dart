@@ -11,8 +11,8 @@ class StatusChip extends StatelessWidget {
     return Chip(
       label: Text(label),
       backgroundColor: online
-          ? Colors.green.withValues(alpha: 31)
-          : Colors.grey.withValues(alpha: 20),
+          ? Colors.green.withValues(alpha: 0.31)
+          : Colors.grey.withValues(alpha: 0.20),
     );
   }
 }

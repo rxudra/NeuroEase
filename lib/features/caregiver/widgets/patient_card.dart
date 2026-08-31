@@ -10,6 +10,7 @@ class PatientCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[PATIENT DEBUG] PatientCard.build for ${status.patientId}');
     final lastActiveStr = status.lastActive != null
         ? (status.lastActive!.toIso8601String().length >= 16
               ? status.lastActive!.toIso8601String().substring(11, 16)
@@ -17,34 +18,55 @@ class PatientCard extends StatelessWidget {
         : 'N/A';
 
     return AppCard(
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          child: Text(status.name.isNotEmpty ? status.name[0] : '?'),
-        ),
-        title: Text(
-          status.name,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          '${status.online ? 'Online' : 'Offline'} • Last active $lastActiveStr',
-        ),
-        trailing: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(status.location),
-            const SizedBox(height: 4),
-            Icon(
-              status.online ? Icons.circle : Icons.circle_outlined,
-              color: status.online ? Colors.green : Colors.grey,
-              size: 12,
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            child: Text(status.name.isNotEmpty ? status.name[0] : '?'),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  status.name,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${status.online ? 'Online' : 'Offline'} • Last active $lastActiveStr',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                status.location,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Icon(
+                status.online ? Icons.circle : Icons.circle_outlined,
+                color: status.online ? Colors.green : Colors.grey,
+                size: 12,
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

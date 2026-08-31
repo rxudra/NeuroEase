@@ -18,7 +18,6 @@ class MedicationService {
   // track taken state per medication per date+time key
   final Set<String> _takenKeys = <String>{};
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final MedicationRepository _repo = FirestoreMedicationService();
   StreamSubscription<List<MedicationModel>>? _sub;
 
@@ -32,50 +31,59 @@ class MedicationService {
   }
 
   void _init() {
-    // Listen for auth changes and attach/detach Firestore stream
-    _auth.authStateChanges().listen((user) {
-      _sub?.cancel();
-      _store.clear();
-      if (user != null) {
-        _sub = _repo.streamForUser(user.uid).listen((list) {
-          _store
-            ..clear()
-            ..addAll(list);
-          _notify();
-        });
-      } else {
-        // fallback mock data for unauthenticated users
-        _store.addAll([
-          MedicationModel(
-            id: 'med1',
-            name: 'Vitamin D',
-            dosage: '1000 IU',
-            type: 'Tablet',
-            frequency: 'Once',
-            times: [const TimeOfDay(hour: 10, minute: 0)],
-            foodInstruction: 'After food',
-            notes: 'Take with breakfast',
-            startDate: DateTime.now().subtract(const Duration(days: 10)),
-            endDate: DateTime.now().add(const Duration(days: 20)),
-            isReminderEnabled: true,
-          ),
-          MedicationModel(
-            id: 'med2',
-            name: 'Amlodipine',
-            dosage: '5 mg',
-            type: 'Tablet',
-            frequency: 'Once',
-            times: [const TimeOfDay(hour: 8, minute: 0)],
-            foodInstruction: 'Anytime',
-            notes: 'Monitor blood pressure',
-            startDate: DateTime.now().subtract(const Duration(days: 2)),
-            endDate: DateTime.now().add(const Duration(days: 365)),
-            isReminderEnabled: true,
-          ),
-        ]);
-        _notify();
-      }
-    });
+    try {
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        _sub?.cancel();
+        _store.clear();
+        if (user != null) {
+          _sub = _repo.streamForUser(user.uid).listen((list) {
+            _store
+              ..clear()
+              ..addAll(list);
+            _notify();
+          });
+        } else {
+          _initFallback();
+        }
+      });
+    } catch (e) {
+      debugPrint('[MedicationService] FirebaseAuth init skipped: $e');
+      _initFallback();
+    }
+  }
+
+  void _initFallback() {
+    if (_store.isEmpty) {
+      _store.addAll([
+        MedicationModel(
+          id: 'med1',
+          name: 'Vitamin D',
+          dosage: '1000 IU',
+          type: 'Tablet',
+          frequency: 'Once',
+          times: [const TimeOfDay(hour: 10, minute: 0)],
+          foodInstruction: 'After food',
+          notes: 'Take with breakfast',
+          startDate: DateTime.now().subtract(const Duration(days: 10)),
+          endDate: DateTime.now().add(const Duration(days: 20)),
+          isReminderEnabled: true,
+        ),
+        MedicationModel(
+          id: 'med2',
+          name: 'Amlodipine',
+          dosage: '5 mg',
+          type: 'Tablet',
+          frequency: 'Once',
+          times: [const TimeOfDay(hour: 8, minute: 0)],
+          foodInstruction: 'Anytime',
+          notes: 'Monitor blood pressure',
+          startDate: DateTime.now().subtract(const Duration(days: 2)),
+          endDate: DateTime.now().add(const Duration(days: 365)),
+          isReminderEnabled: true,
+        ),
+      ]);
+      _notify();
+    }
   }
 
   List<MedicationModel> getAll() => List.unmodifiable(_store);
@@ -108,7 +116,6 @@ class MedicationService {
   }
 
   List<MedicationModel> getMissedForDate(DateTime date) {
-    // for mock: none missed
     return <MedicationModel>[];
   }
 
@@ -127,7 +134,6 @@ class MedicationService {
   }
 
   Future<void> addMedication(MedicationModel med) async {
-    // Validation
     if (med.name.trim().isEmpty ||
         med.dosage.trim().isEmpty ||
         med.times.isEmpty) {
@@ -135,32 +141,37 @@ class MedicationService {
         'Medicine name, dosage and at least one timing are required',
       );
     }
-    final user = _auth.currentUser;
-    // Optimistic update for immediate UX
     _store.add(med);
     _notify();
-    if (user != null) {
-      await _repo.add(user.uid, med);
-    }
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _repo.add(user.uid, med);
+      }
+    } catch (_) {}
   }
 
   Future<void> updateMedication(String id, MedicationModel updated) async {
     final idx = _store.indexWhere((m) => m.id == id);
     if (idx >= 0) _store[idx] = updated;
     _notify();
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _repo.update(user.uid, updated);
-    }
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _repo.update(user.uid, updated);
+      }
+    } catch (_) {}
   }
 
   Future<void> deleteMedication(String id) async {
     _store.removeWhere((m) => m.id == id);
     _notify();
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _repo.delete(user.uid, id);
-    }
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _repo.delete(user.uid, id);
+      }
+    } catch (_) {}
   }
 
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';

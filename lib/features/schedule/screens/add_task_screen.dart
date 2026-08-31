@@ -41,7 +41,8 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       _color = e.colorValue;
     } else {
       _title = '';
-      if (widget.prefillCategory != null && widget.prefillCategory!.isNotEmpty) {
+      if (widget.prefillCategory != null &&
+          widget.prefillCategory!.isNotEmpty) {
         _category = widget.prefillCategory!;
       }
     }

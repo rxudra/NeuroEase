@@ -13,7 +13,7 @@ class ConnectionChip extends StatelessWidget {
         : (status == ConnectionStatus.connecting ? Colors.orange : Colors.grey);
     return Chip(
       label: Text(status.name),
-      backgroundColor: color.withValues(alpha: 31),
+      backgroundColor: color.withValues(alpha: 0.31),
     );
   }
 }

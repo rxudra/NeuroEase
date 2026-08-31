@@ -9,6 +9,7 @@ import '../emergency/screens/emergency_home_screen.dart';
 import '../medication/models/medication_model.dart';
 import '../medication/services/medication_service.dart';
 import '../notifications/screens/notification_center_screen.dart';
+import '../health/screens/patient_health_dashboard_screen.dart';
 import 'widgets/dashboard_widgets.dart';
 import 'widgets/medication_card.dart';
 
@@ -194,7 +195,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       // Health Summary Card
                       DashboardCard(
                         color: AppColors.primaryContainer,
-                        onTap: null,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PatientHealthDashboardScreen(),
+                            ),
+                          );
+                        },
                         child: Row(
                           children: [
                             Expanded(
@@ -212,7 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   Text(
                                     activeMeds.isNotEmpty
                                         ? '${activeMeds.length} active medication${activeMeds.length > 1 ? "s" : ""} scheduled for today'
-                                        : 'Here is your health summary for today.',
+                                        : 'Tap to view your health profile and metrics.',
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       color: AppColors.textSecondary,
                                     ),
@@ -239,12 +248,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     children: [
                                       const Icon(
                                         Icons.favorite_rounded,
-                                        color: AppColors.error,
+                                        color: AppColors.primary,
                                         size: 16,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        '72 bpm',
+                                        'Health',
                                         style: theme.textTheme.titleMedium
                                             ?.copyWith(
                                               fontWeight: FontWeight.bold,
@@ -255,7 +264,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
-                                    'Heart Rate',
+                                    'Overview',
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: AppColors.textMuted,
                                     ),

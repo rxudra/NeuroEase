@@ -112,9 +112,9 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
   }
 
   void _openAdd(BuildContext context) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddReminderScreen()),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AddReminderScreen()));
     if (mounted) setState(() {});
   }
 
@@ -125,4 +125,3 @@ class _ReminderHomeScreenState extends State<ReminderHomeScreen> {
     if (mounted) setState(() {});
   }
 }
-

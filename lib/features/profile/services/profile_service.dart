@@ -13,7 +13,6 @@ class ProfileService {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       fullName: 'Rudra Kumar',
       nickname: 'Rudra',
-      dob: DateTime(1955, 4, 12),
       gender: 'Male',
       bloodGroup: 'A+',
       heightCm: 170,

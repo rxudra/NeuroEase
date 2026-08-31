@@ -108,9 +108,7 @@ class _AddMedicationScreenState extends State<AddMedicationScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isEditing
-                ? 'Medication updated'
-                : 'Medication added successfully',
+            isEditing ? 'Medication updated' : 'Medication added successfully',
           ),
         ),
       );

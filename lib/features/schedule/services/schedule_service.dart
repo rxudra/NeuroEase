@@ -2,36 +2,72 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import '../../backend/data/firestore_schedule_service.dart';
 import '../../backend/repositories/schedule_repository.dart';
 import '../models/schedule_task.dart';
 
 class ScheduleService {
-  ScheduleService._private() {
+  ScheduleService({ScheduleRepository? repository, this._auth})
+    : _repo = repository ?? FirestoreScheduleService() {
     _init();
   }
+
+  ScheduleService._private()
+    : _repo = FirestoreScheduleService(),
+      _auth = null {
+    _init();
+  }
+
   static final ScheduleService instance = ScheduleService._private();
 
   final List<ScheduleTask> _tasks = [];
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final ScheduleRepository _repo = FirestoreScheduleService();
+  final ScheduleRepository _repo;
+  final FirebaseAuth? _auth;
   StreamSubscription<List<ScheduleTask>>? _sub;
 
+  final StreamController<List<ScheduleTask>> _streamController =
+      StreamController<List<ScheduleTask>>.broadcast();
+
+  Stream<List<ScheduleTask>> get stream => _streamController.stream;
+
+  User? get _currentUser {
+    if (_auth != null) return _auth.currentUser;
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _notify() {
+    if (!_streamController.isClosed) {
+      _streamController.add(List.unmodifiable(_tasks));
+    }
+  }
+
   void _init() {
-    _auth.authStateChanges().listen((user) {
-      _sub?.cancel();
-      _tasks.clear();
-      if (user != null) {
-        _sub = _repo.streamForUser(user.uid).listen((list) {
-          _tasks
-            ..clear()
-            ..addAll(list);
-        });
-      } else {
-        initMock();
-      }
-    });
+    try {
+      final auth = _auth ?? FirebaseAuth.instance;
+      auth.authStateChanges().listen((user) {
+        _sub?.cancel();
+        _tasks.clear();
+        if (user != null) {
+          _sub = _repo.streamForUser(user.uid).listen((list) {
+            _tasks
+              ..clear()
+              ..addAll(list);
+            _notify();
+          });
+        } else {
+          initMock();
+          _notify();
+        }
+      });
+    } catch (_) {
+      initMock();
+      _notify();
+    }
   }
 
   void initMock() {
@@ -69,6 +105,7 @@ class ScheduleService {
         colorValue: Colors.orange.toARGB32(),
       ),
     ]);
+    _notify();
   }
 
   List<ScheduleTask> getAll() => List.unmodifiable(_tasks);
@@ -90,7 +127,8 @@ class ScheduleService {
 
   Future<void> addTask(ScheduleTask t) async {
     _tasks.add(t);
-    final user = _auth.currentUser;
+    _notify();
+    final user = _currentUser;
     if (user != null) {
       await _repo.add(user.uid, t);
     }
@@ -100,8 +138,9 @@ class ScheduleService {
     final idx = _tasks.indexWhere((t) => t.id == updated.id);
     if (idx >= 0) {
       _tasks[idx] = updated;
+      _notify();
     }
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.update(user.uid, updated);
     }
@@ -109,7 +148,8 @@ class ScheduleService {
 
   Future<void> deleteTask(String id) async {
     _tasks.removeWhere((t) => t.id == id);
-    final user = _auth.currentUser;
+    _notify();
+    final user = _currentUser;
     if (user != null) {
       await _repo.delete(user.uid, id);
     }
@@ -120,7 +160,8 @@ class ScheduleService {
     if (idx >= 0) {
       final updated = _tasks[idx].copyWith(completed: !_tasks[idx].completed);
       _tasks[idx] = updated;
-      final user = _auth.currentUser;
+      _notify();
+      final user = _currentUser;
       if (user != null) {
         await _repo.update(user.uid, updated);
       }
@@ -134,4 +175,3 @@ class ScheduleService {
     return done / tasks.length;
   }
 }
-

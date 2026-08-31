@@ -31,31 +31,17 @@ class ProfileHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Text('${patient.age} yrs'),
+                    Text(
+                      patient.age != null
+                          ? '${patient.age} yrs'
+                          : 'Not recorded',
+                    ),
                     const SizedBox(width: 12),
                     Chip(label: Text(patient.bloodGroup)),
                   ],
                 ),
               ],
             ),
-          ),
-          Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: const [
-                    Icon(Icons.warning, color: Colors.red),
-                    SizedBox(width: 6),
-                    Text('Emergency'),
-                  ],
-                ),
-              ),
-            ],
           ),
         ],
       ),

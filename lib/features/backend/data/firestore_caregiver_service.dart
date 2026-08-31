@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../caregiver/models/alert_model.dart';
 import '../../caregiver/models/caregiver_model.dart';
@@ -7,90 +8,123 @@ import '../../caregiver/models/family_member_model.dart';
 import '../repositories/caregiver_repository.dart';
 
 class FirestoreCaregiverService implements CaregiverRepository {
-  FirestoreCaregiverService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreCaregiverService({this._firestore});
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  CollectionReference<Map<String, dynamic>> _userAlerts(String uid) =>
-      _firestore.collection('users').doc(uid).collection('alerts');
+  FirebaseFirestore? get _db {
+    if (_firestore != null) return _firestore;
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
 
-  CollectionReference<Map<String, dynamic>> _userCaregivers(String uid) =>
-      _firestore.collection('users').doc(uid).collection('caregivers');
+  CollectionReference<Map<String, dynamic>>? _userAlerts(String uid) {
+    final db = _db;
+    if (db == null || uid.isEmpty) return null;
+    return db.collection('users').doc(uid).collection('alerts');
+  }
 
-  CollectionReference<Map<String, dynamic>> _patientLinks(
+  CollectionReference<Map<String, dynamic>>? _userCaregivers(String uid) {
+    final db = _db;
+    if (db == null || uid.isEmpty) return null;
+    return db.collection('users').doc(uid).collection('caregivers');
+  }
+
+  CollectionReference<Map<String, dynamic>>? _patientLinks(
     String caregiverUid,
-  ) => _firestore
-      .collection('users')
-      .doc(caregiverUid)
-      .collection('patient_links');
+  ) {
+    final db = _db;
+    if (db == null || caregiverUid.isEmpty) return null;
+    return db.collection('users').doc(caregiverUid).collection('patient_links');
+  }
+
+  CollectionReference<Map<String, dynamic>>? _userFamily(String uid) {
+    final db = _db;
+    if (db == null || uid.isEmpty) return null;
+    return db.collection('users').doc(uid).collection('family_members');
+  }
 
   @override
   Stream<List<AlertModel>> streamAlertsForUser(String uid) {
-    return _userAlerts(uid)
-        .orderBy('time', descending: true)
-        .snapshots()
-        .map(
-          (snap) => snap.docs.map((d) {
-            final data = {...d.data(), 'id': d.id};
-            return AlertModel.fromMap(data, documentId: d.id);
-          }).toList(),
-        );
+    final col = _userAlerts(uid);
+    if (col == null) return Stream.value([]);
+    return col.snapshots().map((snap) {
+      final list = snap.docs.map((d) {
+        final map = Map<String, dynamic>.from(d.data());
+        return AlertModel.fromMap(map, documentId: d.id);
+      }).toList();
+      list.sort((a, b) {
+        final tA = a.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final tB = b.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return tB.compareTo(tA);
+      });
+      return list;
+    });
   }
 
   @override
   Future<List<AlertModel>> getAlerts(String uid) async {
-    final snap = await _userAlerts(uid).orderBy('time', descending: true).get();
-    return snap.docs
-        .map(
-          (d) =>
-              AlertModel.fromMap({...d.data(), 'id': d.id}, documentId: d.id),
-        )
+    final col = _userAlerts(uid);
+    if (col == null) return [];
+    final snap = await col.get();
+    final list = snap.docs
+        .map((d) => AlertModel.fromMap(d.data(), documentId: d.id))
         .toList();
+    list.sort((a, b) {
+      final tA = a.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final tB = b.time ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return tB.compareTo(tA);
+    });
+    return list;
   }
 
   @override
   Future<void> addAlert(String uid, AlertModel alert) async {
-    final map = alert.toMap();
-    final docRef = _userAlerts(uid).doc(alert.id);
-    final writeMap = Map<String, dynamic>.from(map);
-    writeMap['createdAt'] = FieldValue.serverTimestamp();
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-    await docRef.set(writeMap, SetOptions(merge: true));
+    final col = _userAlerts(uid);
+    if (col == null) return;
+    try {
+      final docRef = col.doc(alert.id);
+      await docRef.set(alert.toMap(), SetOptions(merge: true));
+    } catch (e, stackTrace) {
+      debugPrint('[FirestoreCaregiverService] addAlert error: $e\n$stackTrace');
+      rethrow;
+    }
   }
 
   @override
   Future<void> updateAlert(String uid, AlertModel alert) async {
-    final map = alert.toMap();
-    final docRef = _userAlerts(uid).doc(alert.id);
-    final writeMap = Map<String, dynamic>.from(map);
-    writeMap.remove('createdAt');
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-    await docRef.set(writeMap, SetOptions(merge: true));
+    final col = _userAlerts(uid);
+    if (col == null) return;
+    await col.doc(alert.id).set(alert.toMap(), SetOptions(merge: true));
   }
 
   @override
   Future<void> deleteAlert(String uid, String alertId) async {
-    await _userAlerts(uid).doc(alertId).delete();
+    final col = _userAlerts(uid);
+    if (col == null) return;
+    await col.doc(alertId).delete();
   }
 
   @override
   Stream<CaregiverModel?> streamCaregiverProfile(String uid) {
-    final docId = uid.isNotEmpty ? uid : 'profile';
-    return _userCaregivers(uid).doc(docId).snapshots().map((snap) {
-      if (!snap.exists || snap.data() == null) return null;
-      final data = {...snap.data()!, 'id': snap.id};
-      return CaregiverModel.fromMap(data, documentId: snap.id);
+    final col = _userCaregivers(uid);
+    if (col == null) return Stream.value(null);
+    return col.doc('profile').snapshots().map((doc) {
+      if (!doc.exists || doc.data() == null) return null;
+      return CaregiverModel.fromMap({...doc.data()!, 'id': doc.id});
     });
   }
 
   @override
   Future<CaregiverModel?> getCaregiverProfile(String uid) async {
-    final docId = uid.isNotEmpty ? uid : 'profile';
-    final snap = await _userCaregivers(uid).doc(docId).get();
-    if (!snap.exists || snap.data() == null) return null;
-    final data = {...snap.data()!, 'id': snap.id};
-    return CaregiverModel.fromMap(data, documentId: snap.id);
+    final col = _userCaregivers(uid);
+    if (col == null) return null;
+    final doc = await col.doc('profile').get();
+    if (!doc.exists || doc.data() == null) return null;
+    return CaregiverModel.fromMap({...doc.data()!, 'id': doc.id});
   }
 
   @override
@@ -98,22 +132,21 @@ class FirestoreCaregiverService implements CaregiverRepository {
     String uid,
     CaregiverModel caregiver,
   ) async {
-    final docId = caregiver.id.isNotEmpty ? caregiver.id : uid;
-    final map = caregiver.toMap();
-    final docRef = _userCaregivers(uid).doc(docId);
-    final writeMap = Map<String, dynamic>.from(map);
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-    await docRef.set(writeMap, SetOptions(merge: true));
+    final col = _userCaregivers(uid);
+    if (col == null) return;
+    await col.doc('profile').set(caregiver.toMap(), SetOptions(merge: true));
   }
 
   @override
   Stream<List<CaregiverRelationshipModel>> streamPatientLinks(
     String caregiverUid,
   ) {
-    return _patientLinks(caregiverUid).snapshots().map(
+    final col = _patientLinks(caregiverUid);
+    if (col == null) return Stream.value([]);
+    return col.snapshots().map(
       (snap) => snap.docs.map((d) {
-        final data = {...d.data(), 'id': d.id};
-        return CaregiverRelationshipModel.fromMap(data, documentId: d.id);
+        final data = Map<String, dynamic>.from(d.data());
+        return CaregiverRelationshipModel.fromMap({...data, 'id': d.id});
       }).toList(),
     );
   }
@@ -122,13 +155,12 @@ class FirestoreCaregiverService implements CaregiverRepository {
   Future<List<CaregiverRelationshipModel>> getPatientLinks(
     String caregiverUid,
   ) async {
-    final snap = await _patientLinks(caregiverUid).get();
+    final col = _patientLinks(caregiverUid);
+    if (col == null) return [];
+    final snap = await col.get();
     return snap.docs
         .map(
-          (d) => CaregiverRelationshipModel.fromMap({
-            ...d.data(),
-            'id': d.id,
-          }, documentId: d.id),
+          (d) => CaregiverRelationshipModel.fromMap({...d.data(), 'id': d.id}),
         )
         .toList();
   }
@@ -139,96 +171,65 @@ class FirestoreCaregiverService implements CaregiverRepository {
     String patientId, {
     String relationship = 'Primary Caregiver',
   }) async {
-    if (caregiverUid.isEmpty || patientId.isEmpty) return;
-
-    final link = CaregiverRelationshipModel(
+    final col = _patientLinks(caregiverUid);
+    if (col == null) return;
+    final model = CaregiverRelationshipModel(
       id: patientId,
       caregiverId: caregiverUid,
       patientId: patientId,
       relationship: relationship,
       createdAt: DateTime.now(),
     );
-
-    final caregiverLinkRef = _patientLinks(caregiverUid).doc(patientId);
-    final patientLinkRef = _firestore
-        .collection('users')
-        .doc(patientId)
-        .collection('caregivers')
-        .doc(caregiverUid);
-
-    final writeMap = Map<String, dynamic>.from(link.toMap());
-    writeMap['createdAt'] = FieldValue.serverTimestamp();
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-
-    await caregiverLinkRef.set(writeMap, SetOptions(merge: true));
-    await patientLinkRef.set(writeMap, SetOptions(merge: true));
+    await col.doc(patientId).set(model.toMap(), SetOptions(merge: true));
   }
 
   @override
   Future<void> unlinkPatient(String caregiverUid, String patientId) async {
-    if (caregiverUid.isEmpty || patientId.isEmpty) return;
-
-    await _patientLinks(caregiverUid).doc(patientId).delete();
-    await _firestore
-        .collection('users')
-        .doc(patientId)
-        .collection('caregivers')
-        .doc(caregiverUid)
-        .delete();
+    final col = _patientLinks(caregiverUid);
+    if (col == null) return;
+    await col.doc(patientId).delete();
   }
-
-  CollectionReference<Map<String, dynamic>> _userFamilyMembers(String uid) =>
-      _firestore.collection('users').doc(uid).collection('family_members');
 
   @override
   Stream<List<FamilyMemberModel>> streamFamilyMembers(String uid) {
-    return _userFamilyMembers(uid).snapshots().map(
+    final col = _userFamily(uid);
+    if (col == null) return Stream.value([]);
+    return col.snapshots().map(
       (snap) => snap.docs.map((d) {
-        final data = {...d.data(), 'id': d.id};
-        return FamilyMemberModel.fromMap(data, documentId: d.id);
+        final data = Map<String, dynamic>.from(d.data());
+        return FamilyMemberModel.fromMap({...data, 'id': d.id});
       }).toList(),
     );
   }
 
   @override
   Future<List<FamilyMemberModel>> getFamilyMembers(String uid) async {
-    final snap = await _userFamilyMembers(uid).get();
+    final col = _userFamily(uid);
+    if (col == null) return [];
+    final snap = await col.get();
     return snap.docs
-        .map(
-          (d) => FamilyMemberModel.fromMap({
-            ...d.data(),
-            'id': d.id,
-          }, documentId: d.id),
-        )
+        .map((d) => FamilyMemberModel.fromMap({...d.data(), 'id': d.id}))
         .toList();
   }
 
   @override
   Future<void> addFamilyMember(String uid, FamilyMemberModel member) async {
-    final map = member.toMap();
-    final docId = member.id.isNotEmpty
-        ? member.id
-        : _userFamilyMembers(uid).doc().id;
-    final docRef = _userFamilyMembers(uid).doc(docId);
-    final writeMap = Map<String, dynamic>.from(map);
-    writeMap['id'] = docId;
-    writeMap['createdAt'] = FieldValue.serverTimestamp();
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-    await docRef.set(writeMap, SetOptions(merge: true));
+    final col = _userFamily(uid);
+    if (col == null) return;
+    await col.doc(member.id).set(member.toMap(), SetOptions(merge: true));
   }
 
   @override
   Future<void> updateFamilyMember(String uid, FamilyMemberModel member) async {
-    final map = member.toMap();
-    final docRef = _userFamilyMembers(uid).doc(member.id);
-    final writeMap = Map<String, dynamic>.from(map);
-    writeMap.remove('createdAt');
-    writeMap['updatedAt'] = FieldValue.serverTimestamp();
-    await docRef.set(writeMap, SetOptions(merge: true));
+    final col = _userFamily(uid);
+    if (col == null) return;
+    await col.doc(member.id).set(member.toMap(), SetOptions(merge: true));
   }
 
   @override
   Future<void> deleteFamilyMember(String uid, String memberId) async {
-    await _userFamilyMembers(uid).doc(memberId).delete();
+    final col = _userFamily(uid);
+    if (col == null) return;
+    await col.doc(memberId).delete();
   }
 }

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'caregiver_alerts_screen.dart';
 import 'caregiver_home_screen.dart';
 import 'caregiver_patients_screen.dart';
+import 'caregiver_profile_screen.dart';
+import '../../notifications/screens/caregiver_notifications_screen.dart';
 
 class CaregiverShell extends StatefulWidget {
   const CaregiverShell({super.key, this.initialIndex = 0});
@@ -32,21 +35,9 @@ class _CaregiverShellState extends State<CaregiverShell> {
     final pages = [
       const CaregiverHomeScreen(),
       const CaregiverPatientsScreen(),
-      const _CaregiverPlaceholderScreen(
-        title: 'Alerts',
-        subtitle: 'View and manage critical caregiver alerts',
-        icon: Icons.warning_amber_outlined,
-      ),
-      const _CaregiverPlaceholderScreen(
-        title: 'Notifications',
-        subtitle: 'Caregiver updates and system notifications',
-        icon: Icons.notifications_none_outlined,
-      ),
-      const _CaregiverPlaceholderScreen(
-        title: 'Profile',
-        subtitle: 'Caregiver profile, preferences, and account settings',
-        icon: Icons.person_outline,
-      ),
+      const CaregiverAlertsScreen(),
+      const CaregiverNotificationsScreen(),
+      const CaregiverProfileScreen(),
     ];
 
     return Scaffold(
@@ -82,59 +73,6 @@ class _CaregiverShellState extends State<CaregiverShell> {
             label: 'Profile',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CaregiverPlaceholderScreen extends StatelessWidget {
-  const _CaregiverPlaceholderScreen({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(
-                radius: 36,
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Icon(
-                  icon,
-                  size: 36,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

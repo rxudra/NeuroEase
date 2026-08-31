@@ -58,7 +58,7 @@ class EmergencyEventModel {
       type: parseType(m['type'] as String?),
       title: m['title'] as String? ?? '',
       details: m['details'] as String? ?? '',
-      time: parseTime(m['time']),
+      time: parseTime(m['time'] ?? m['createdAt'] ?? m['timestamp']),
     );
   }
 }

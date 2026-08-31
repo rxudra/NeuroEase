@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import '../../auth/auth_gate.dart';
 import '../../auth/auth_service.dart';
 import '../../emergency/screens/emergency_home_screen.dart';
+import '../../health/screens/caregiver_patient_health_screen.dart';
+import '../../notifications/models/notification_item.dart';
+import '../../notifications/screens/caregiver_notifications_screen.dart';
+import '../../notifications/services/notification_service.dart';
 import '../models/alert_model.dart';
 import '../models/family_member_model.dart';
 import '../models/patient_status_model.dart';
@@ -13,9 +17,10 @@ import '../widgets/emergency_button.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/family_card.dart';
 import '../widgets/patient_card.dart';
-import 'caregiver_patient_detail_screen.dart';
 import '../widgets/section_header.dart';
 import '../widgets/statistic_tile.dart';
+import 'caregiver_patient_detail_screen.dart';
+import 'caregiver_profile_screen.dart';
 
 class CaregiverHomeScreen extends StatefulWidget {
   const CaregiverHomeScreen({super.key});
@@ -28,6 +33,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
   StreamSubscription<List<AlertModel>>? _alertsSub;
   StreamSubscription<List<PatientStatusModel>>? _patientsSub;
   StreamSubscription<List<FamilyMemberModel>>? _familySub;
+  StreamSubscription<List<NotificationItem>>? _notifSub;
 
   @override
   void initState() {
@@ -41,6 +47,9 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     _familySub = CaregiverService.instance.familyStream.listen((_) {
       if (mounted) setState(() {});
     });
+    _notifSub = NotificationService.instance.stream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -48,6 +57,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     _alertsSub?.cancel();
     _patientsSub?.cancel();
     _familySub?.cancel();
+    _notifSub?.cancel();
     super.dispose();
   }
 
@@ -60,7 +70,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Link Patient'),
+        title: const Text('Link Patient Profile'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -176,7 +186,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                 );
               },
               icon: const Icon(Icons.sos),
-              label: const Text('View Emergency Timeline'),
+              label: const Text('View Emergency Response'),
             ),
         ],
       ),
@@ -327,19 +337,68 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
     final patients = service.getPatients();
     final alerts = service.getAlerts();
     final family = service.getFamily();
+    final unreadNotifs = NotificationService.instance.unreadCount;
+
+    final hasCriticalAlert = alerts.any(
+      (a) => a.severity >= 4 || a.type == AlertType.fall,
+    );
+    final activePatientsCount = patients.where((p) => p.online).length;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Caregiver Dashboard'),
         actions: [
+          // NOTIFICATIONS BADGE SHORTCUT
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_none_rounded),
+                tooltip: 'Caregiver Notifications',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CaregiverNotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+              if (unreadNotifs > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      unreadNotifs > 99 ? '99+' : '$unreadNotifs',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
-            icon: const Icon(Icons.person_add),
+            icon: const Icon(Icons.person_add_outlined),
             tooltip: 'Link Patient',
             onPressed: _showLinkPatientDialog,
           ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
-            tooltip: 'Log out',
+            tooltip: 'Sign Out',
             onPressed: () async {
               await AuthService().signOut();
               if (context.mounted) {
@@ -357,8 +416,95 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // CRITICAL SOS WARNING BANNER IF ACTIVE ALERTS EXIST
+            if (hasCriticalAlert) ...[
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const EmergencyHomeScreen(),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.red.shade400, width: 1.5),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.red.shade800,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Critical Emergency Alert Active!',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade900,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Patient SOS or fall alert recorded. Tap to view emergency response.',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.red.shade800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.red.shade800,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // CAREGIVER PROFILE & GREETING HEADER
             Row(
               children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CaregiverProfileScreen(),
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: Text(
+                      caregiver.name.isNotEmpty
+                          ? caregiver.name[0].toUpperCase()
+                          : 'C',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,30 +513,123 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                         caregiver.name.isNotEmpty
                             ? caregiver.name
                             : 'Caregiver',
-                        style: Theme.of(context).textTheme.titleLarge,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 4),
                       Text(
                         caregiver.role.isNotEmpty
                             ? caregiver.role
                             : 'Primary Caregiver',
-                        style: Theme.of(context).textTheme.labelLarge,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey.shade700,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                EmergencyButton(onPressed: () {}),
+                // WIRED EMERGENCY SOS BUTTON
+                EmergencyButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EmergencyHomeScreen(),
+                      ),
+                    );
+                  },
+                ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+
+            // QUICK ACTION SHORTCUTS BAR
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.health_and_safety_outlined,
+                      size: 18,
+                    ),
+                    label: const Text('Patient Health Dashboard'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CaregiverPatientHealthScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 18,
+                    ),
+                    label: Text('Notifications ($unreadNotifs)'),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CaregiverNotificationsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  ActionChip(
+                    avatar: const Icon(Icons.person_add_outlined, size: 18),
+                    label: const Text('Link Patient'),
+                    onPressed: _showLinkPatientDialog,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // WORKSPACE STATISTICS
+            SectionHeader(title: 'Workspace Statistics'),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: StatisticTile(
+                    title: 'Linked Patients',
+                    value: '${patients.length}',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatisticTile(
+                    title: 'Active Alerts',
+                    value: '${alerts.length}',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatisticTile(
+                    title: 'Active Status',
+                    value: '$activePatientsCount / ${patients.length}',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // LINKED PATIENTS SECTION
             SectionHeader(
-              title: 'Patients',
-              actionLabel: '+ Link',
+              title: 'Linked Patients',
+              actionLabel: '+ Link Patient',
               onAction: _showLinkPatientDialog,
             ),
             const SizedBox(height: 8),
             if (patients.isEmpty)
-              const EmptyState(title: 'No linked patients yet')
+              const EmptyState(
+                title: 'No linked patients in your workspace yet.',
+              )
             else
               Column(
                 children: patients
@@ -414,9 +653,11 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                     )
                     .toList(),
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+
+            // ACTIVE ALERTS SECTION
             SectionHeader(
-              title: 'Alerts',
+              title: 'Active Alerts',
               actionLabel: alerts.isNotEmpty ? 'Dismiss all' : null,
               onAction: alerts.isNotEmpty
                   ? () {
@@ -428,7 +669,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
             ),
             const SizedBox(height: 8),
             if (alerts.isEmpty)
-              const EmptyState(title: 'No active alerts')
+              const EmptyState(title: 'No active alerts for linked patients')
             else
               Column(
                 children: alerts
@@ -446,8 +687,9 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                     )
                     .toList(),
               ),
+            const SizedBox(height: 20),
 
-            const SizedBox(height: 12),
+            // FAMILY MEMBERS SECTION
             SectionHeader(
               title: 'Family Members',
               actionLabel: '+ Add',
@@ -455,7 +697,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
             ),
             const SizedBox(height: 8),
             if (family.isEmpty)
-              const EmptyState(title: 'No family members')
+              const EmptyState(title: 'No family members recorded')
             else
               Column(
                 children: family
@@ -471,23 +713,7 @@ class _CaregiverHomeScreenState extends State<CaregiverHomeScreen> {
                     )
                     .toList(),
               ),
-            const SizedBox(height: 12),
-            SectionHeader(title: 'Quick Stats'),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                StatisticTile(
-                  title: 'Linked Patients',
-                  value: '${patients.length}',
-                ),
-                StatisticTile(
-                  title: 'Active Alerts',
-                  value: '${alerts.length}',
-                ),
-                const StatisticTile(title: 'Adherence', value: '100%'),
-              ],
-            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

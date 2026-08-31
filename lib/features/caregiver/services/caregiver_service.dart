@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../backend/data/firestore_caregiver_service.dart';
 import '../../backend/data/firestore_emergency_event_service.dart';
@@ -35,7 +36,22 @@ class CaregiverService {
   final List<FamilyMemberModel> family = [];
   final List<CaregiverRelationshipModel> relationshipLinks = [];
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? get _authInstance {
+    try {
+      return FirebaseAuth.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  User? get _currentUser {
+    try {
+      return _authInstance?.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
+
   final CaregiverRepository _repo = FirestoreCaregiverService();
   final UserRepository _userRepo = FirestoreUserRepository();
   final EmergencyEventRepository _emergencyRepo =
@@ -77,7 +93,12 @@ class CaregiverService {
   }
 
   void _init() {
-    _auth.authStateChanges().listen((user) async {
+    final auth = _authInstance;
+    if (auth == null) {
+      initMock();
+      return;
+    }
+    auth.authStateChanges().listen((user) async {
       _alertsSub?.cancel();
       _profileSub?.cancel();
       _linksSub?.cancel();
@@ -112,7 +133,10 @@ class CaregiverService {
                   ..addAll(list);
                 _notify();
               },
-              onError: (_) {
+              onError: (error, stackTrace) {
+                debugPrint(
+                  '[CaregiverService] Family members stream error: $error\n$stackTrace',
+                );
                 _notify();
               },
             );
@@ -121,12 +145,27 @@ class CaregiverService {
             .streamAlertsForUser(user.uid)
             .listen(
               (list) {
+                final pendingLocalAlerts = alerts
+                    .where(
+                      (a) =>
+                          a.id.startsWith('sos_') &&
+                          !list.any((item) => item.id == a.id),
+                    )
+                    .toList();
                 alerts
                   ..clear()
                   ..addAll(list);
+                for (final pending in pendingLocalAlerts) {
+                  if (!alerts.any((a) => a.id == pending.id)) {
+                    alerts.insert(0, pending);
+                  }
+                }
                 _notify();
               },
-              onError: (_) {
+              onError: (error, stackTrace) {
+                debugPrint(
+                  '[CaregiverService] Caregiver alerts stream error: $error\n$stackTrace',
+                );
                 _notify();
               },
             );
@@ -140,7 +179,10 @@ class CaregiverService {
                 }
                 _notify();
               },
-              onError: (_) {
+              onError: (error, stackTrace) {
+                debugPrint(
+                  '[CaregiverService] Caregiver profile stream error: $error\n$stackTrace',
+                );
                 _notify();
               },
             );
@@ -157,9 +199,20 @@ class CaregiverService {
 
                 final List<PatientStatusModel> updatedPatients = [];
                 for (final link in links) {
-                  final pModel = await _userRepo.getById(link.patientId);
-                  final pName = pModel?.fullName.isNotEmpty == true
-                      ? pModel!.fullName
+                  if (link.patientId.isEmpty) continue;
+
+                  dynamic pModel;
+                  try {
+                    pModel = await _userRepo.getById(link.patientId);
+                  } catch (e, stackTrace) {
+                    debugPrint(
+                      '[CaregiverService] Error fetching profile for ${link.patientId}: $e\n$stackTrace',
+                    );
+                  }
+
+                  final String pName =
+                      (pModel != null && pModel.fullName.isNotEmpty)
+                      ? pModel.fullName
                       : 'Patient ${link.patientId}';
 
                   updatedPatients.add(
@@ -176,26 +229,60 @@ class CaregiverService {
                   // Subscribe to real emergency events for linked patient
                   _patientEmergencySubs[link.patientId] = _emergencyRepo
                       .streamForUser(link.patientId)
-                      .listen((events) {
-                        for (final ev in events) {
-                          final alertId = 'sos_${ev.id}';
-                          if (!alerts.any((a) => a.id == alertId)) {
+                      .listen(
+                        (events) async {
+                          for (final ev in events) {
+                            final alertId = 'sos_${ev.id}';
+                            final existingLocal = alerts.any(
+                              (a) => a.id == alertId,
+                            );
+                            if (existingLocal) {
+                              continue;
+                            }
+                            final user = _currentUser;
+                            if (user != null) {
+                              final remoteAlerts = await _repo.getAlerts(
+                                user.uid,
+                              );
+                              final existingRemote = remoteAlerts.firstWhere(
+                                (a) => a.id == alertId,
+                                orElse: () => AlertModel(id: '', title: ''),
+                              );
+                              if (existingRemote.id.isNotEmpty) {
+                                if (!alerts.any(
+                                  (a) => a.id == existingRemote.id,
+                                )) {
+                                  alerts.insert(0, existingRemote);
+                                  _notify();
+                                }
+                                continue;
+                              }
+                            }
                             final eventTime = ev.time ?? DateTime.now();
+                            final timeIso = eventTime.toIso8601String();
+                            final timeDisplay = timeIso.length >= 16
+                                ? timeIso.substring(11, 16)
+                                : timeIso;
                             final newAlert = AlertModel(
                               id: alertId,
                               title: '🚨 SOS EMERGENCY ALERT - $pName',
                               type: AlertType.fall,
-                              details:
-                                  '${ev.details} (Time: ${eventTime.toIso8601String().substring(11, 16)})',
+                              details: '${ev.details} (Time: $timeDisplay)',
                               time: eventTime,
                               severity: 5,
                               isRead: false,
+                              isDismissed: false,
                               patientId: link.patientId,
                             );
-                            addAlert(newAlert);
+                            await addAlert(newAlert);
                           }
-                        }
-                      });
+                        },
+                        onError: (error, stackTrace) {
+                          debugPrint(
+                            '[CaregiverService] Emergency stream error for ${link.patientId}: $error\n$stackTrace',
+                          );
+                        },
+                      );
                 }
 
                 patients
@@ -203,7 +290,10 @@ class CaregiverService {
                   ..addAll(updatedPatients);
                 _notify();
               },
-              onError: (_) {
+              onError: (error, stackTrace) {
+                debugPrint(
+                  '[CaregiverService] Patient links stream error for ${user.uid}: $error\n$stackTrace',
+                );
                 _notify();
               },
             );
@@ -295,9 +385,13 @@ class CaregiverService {
     // Preserved for backward compatibility
   }
 
-  List<PatientStatusModel> getPatients() => List.unmodifiable(patients);
+  List<PatientStatusModel> getPatients() {
+    return List.unmodifiable(patients);
+  }
+
   HealthSummaryModel? getHealth(String patientId) => health[patientId];
-  List<AlertModel> getAlerts() => List.unmodifiable(alerts);
+  List<AlertModel> getAlerts() =>
+      List.unmodifiable(alerts.where((a) => !a.isDismissed).toList());
   List<FamilyMemberModel> getFamily() => List.unmodifiable(family);
   List<CaregiverRelationshipModel> getRelationshipLinks() =>
       List.unmodifiable(relationshipLinks);
@@ -306,25 +400,28 @@ class CaregiverService {
     String patientId, {
     String relationship = 'Primary Caregiver',
   }) async {
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.linkPatient(user.uid, patientId, relationship: relationship);
     }
   }
 
   Future<void> unlinkPatient(String patientId) async {
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.unlinkPatient(user.uid, patientId);
     }
   }
 
   Future<void> dismissAlert(String id) async {
-    alerts.removeWhere((a) => a.id == id);
-    _notify();
-    final user = _auth.currentUser;
-    if (user != null) {
-      await _repo.deleteAlert(user.uid, id);
+    final idx = alerts.indexWhere((a) => a.id == id);
+    if (idx >= 0) {
+      alerts[idx].isDismissed = true;
+      _notify();
+      final user = _currentUser;
+      if (user != null) {
+        await _repo.updateAlert(user.uid, alerts[idx]);
+      }
     }
   }
 
@@ -333,7 +430,7 @@ class CaregiverService {
     if (idx >= 0) {
       alerts[idx].isRead = true;
       _notify();
-      final user = _auth.currentUser;
+      final user = _currentUser;
       if (user != null) {
         await _repo.updateAlert(user.uid, alerts[idx]);
       }
@@ -348,16 +445,22 @@ class CaregiverService {
       alerts.insert(0, alert);
     }
     _notify();
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
-      await _repo.addAlert(user.uid, alert);
+      try {
+        await _repo.addAlert(user.uid, alert);
+      } catch (e, stackTrace) {
+        debugPrint(
+          '[CaregiverService] Error adding alert ${alert.id}: $e\n$stackTrace',
+        );
+      }
     }
   }
 
   Future<void> updateCaregiverProfile(CaregiverModel profile) async {
     caregiver = profile;
     _notify();
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.saveCaregiverProfile(user.uid, profile);
     }
@@ -371,7 +474,7 @@ class CaregiverService {
       family.add(member);
     }
     _notify();
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.addFamilyMember(user.uid, member);
     }
@@ -385,7 +488,7 @@ class CaregiverService {
       family.add(member);
     }
     _notify();
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.updateFamilyMember(user.uid, member);
     }
@@ -394,7 +497,7 @@ class CaregiverService {
   Future<void> deleteFamilyMember(String memberId) async {
     family.removeWhere((m) => m.id == memberId);
     _notify();
-    final user = _auth.currentUser;
+    final user = _currentUser;
     if (user != null) {
       await _repo.deleteFamilyMember(user.uid, memberId);
     }

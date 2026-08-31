@@ -4,19 +4,31 @@ import '../../profile/models/patient_model.dart';
 import '../repositories/user_repository.dart';
 
 class FirestoreUserRepository implements UserRepository {
-  FirestoreUserRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreUserRepository({this._firestore});
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
+
+  FirebaseFirestore? get _db {
+    if (_firestore != null) return _firestore;
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Future<void> delete(String uid) async {
-    await _firestore.collection('users').doc(uid).delete();
+    final db = _db;
+    if (db == null || uid.isEmpty) return;
+    await db.collection('users').doc(uid).delete();
   }
 
   @override
   Future<PatientModel?> getById(String uid) async {
-    final snap = await _firestore.collection('users').doc(uid).get();
+    final db = _db;
+    if (db == null || uid.isEmpty) return null;
+    final snap = await db.collection('users').doc(uid).get();
     if (!snap.exists) return null;
     final data = snap.data() ?? {};
     // Merge uid if missing
@@ -36,12 +48,12 @@ class FirestoreUserRepository implements UserRepository {
 
   @override
   Future<void> save(PatientModel user) async {
+    final db = _db;
+    if (db == null || user.id.isEmpty) return;
     final map = user.toMap();
-    // Convert ISO dates back to server timestamps where appropriate
-    final docRef = _firestore.collection('users').doc(user.id);
+    final docRef = db.collection('users').doc(user.id);
     final writeMap = Map<String, dynamic>.from(map);
     try {
-      // Convert createdAt and dob to Timestamp if possible
       writeMap['createdAt'] = FieldValue.serverTimestamp();
     } catch (_) {}
     await docRef.set(writeMap, SetOptions(merge: true));
