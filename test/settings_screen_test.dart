@@ -54,7 +54,7 @@ void main() {
 
       expect(find.text('Select Theme Mode'), findsOneWidget);
       expect(find.text('Light Mode'), findsOneWidget);
-      expect(find.text('Dark Mode'), findsOneWidget);
+      expect(find.widgetWithText(SimpleDialogOption, 'Dark Mode'), findsOneWidget);
       expect(find.text('System Default'), findsWidgets);
     });
   });
