@@ -1,0 +1,143 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // SECURITY HELPER FUNCTIONS
+    // =========================================================================
+
+    // Checks if the request is from an authenticated user
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != "";
+    }
+
+    // Checks if the requester is the owner of the specified user ID
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Retrieves user document data for the authenticated requester
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Checks if the requester has the 'caregiver' role stored in their user document
+    function isCaregiver() {
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().role == 'caregiver';
+    }
+
+    // Checks if the requester is an authenticated caregiver AND has an active patient link
+    function isLinkedCaregiver(patientId) {
+      return isCaregiver() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)/patient_links/$(patientId));
+    }
+
+    // Validates role assignment on create / update to prevent privilege escalation
+    function isValidRole(role) {
+      return role == 'patient' || role == 'caregiver';
+    }
+
+    // =========================================================================
+    // USERS COLLECTION & SUBCOLLECTIONS
+    // =========================================================================
+
+    match /users/{userId} {
+      // User Profile Document
+      // Read: Document owner OR verified linked caregiver
+      allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+
+      // Create: Authenticated owner creating initial user profile with valid role
+      allow create: if isOwner(userId) &&
+                       isValidRole(request.resource.data.role);
+
+      // Update: Document owner only; cannot change role from patient to caregiver (privilege escalation prevention)
+      allow update: if isOwner(userId) &&
+                       (
+                         !('role' in request.resource.data) ||
+                         request.resource.data.role == resource.data.role ||
+                         (resource.data.role == null && isValidRole(request.resource.data.role))
+                       );
+
+      // Delete: Document owner only
+      allow delete: if isOwner(userId);
+
+      // -----------------------------------------------------------------------
+      // Caregiver Specific Subcollections (Owned by userId)
+      // -----------------------------------------------------------------------
+
+      // Caregiver Profile
+      match /caregivers/{profileDoc} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      // Patient Links (Caregiver -> Patient relationships)
+      match /patient_links/{patientId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      // Caregiver Alerts (SOS & System alerts for caregiver)
+      match /alerts/{alertId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      // Family Members
+      match /family_members/{memberId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      // User Notifications (Private notification center)
+      match /notifications/{notificationId} {
+        allow read, write, delete: if isOwner(userId);
+      }
+
+      // -----------------------------------------------------------------------
+      // Patient Health & Medical Subcollections (Read-Only for Linked Caregivers)
+      // -----------------------------------------------------------------------
+
+      // Emergency Events (SOS triggers, fall detection, location sharing)
+      match /emergency_events/{eventId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // Emergency Contacts
+      match /emergency_contacts/{contactId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+
+      // Medications & Prescriptions
+      match /medications/{medId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+
+      // Schedule Tasks
+      match /schedule_tasks/{taskId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+
+      // Reminders
+      match /reminders/{reminderId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+
+      // AI Memory Recall Notes
+      match /memories/{memoryId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+
+      // Appointments
+      match /appointments/{appointmentId} {
+        allow read: if isOwner(userId) || isLinkedCaregiver(userId);
+        allow create, update, delete: if isOwner(userId);
+      }
+    }
+  }
+}
