@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'core/firebase/firebase_emulator_config.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/services/settings_service.dart';
 import 'features/splash/screens/splash_screen.dart';
@@ -29,6 +30,7 @@ Future<void> main() async {
     debugPrint('════════ FIRST ERROR END ════════');
   };
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseEmulatorConfig.connect();
   runApp(const NeuroEaseApp());
 }
 

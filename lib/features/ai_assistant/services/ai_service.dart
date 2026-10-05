@@ -1,14 +1,27 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
+import '../models/ai_request_model.dart';
 import '../models/chat_message_model.dart';
 import '../models/memory_model.dart';
 import '../models/exercise_model.dart';
 import '../models/insight_model.dart';
+import 'ai_gateway.dart';
+import 'ai_service_exception.dart';
+import 'firebase_ai_gateway.dart';
 
 class AIService {
-  AIService._private();
+  AIService._private({AIGateway? gateway})
+    : _gateway = gateway ?? FirebaseAIGateway();
+
+  factory AIService.custom({required AIGateway gateway}) {
+    return AIService._private(gateway: gateway);
+  }
+
   static final AIService instance = AIService._private();
 
+  final AIGateway _gateway;
   final List<ChatMessageModel> _messages = [];
   final List<MemoryModel> _memories = [];
   final List<ExerciseModel> _exercises = [];
@@ -58,40 +71,56 @@ class AIService {
   }
 
   Future<ChatMessageModel> sendMessage(String text) async {
+    final normalizedText = text.trim();
+    if (normalizedText.isEmpty) {
+      throw const AIEmptyPromptException();
+    }
+
     final user = ChatMessageModel(
       id: 'u${DateTime.now().millisecondsSinceEpoch}',
-      text: text,
+      text: normalizedText,
       sender: 'user',
       time: DateTime.now(),
     );
     _messages.add(user);
-    // Simulate thinking
-    await Future.delayed(const Duration(milliseconds: 700));
-    final response = ChatMessageModel(
-      id: 'a${DateTime.now().millisecondsSinceEpoch}',
-      text: _generateResponse(text),
-      sender: 'ai',
-      time: DateTime.now(),
-    );
-    _messages.add(response);
-    return response;
+
+    try {
+      final response = await _gateway.generateResponse(
+        AIRequestModel(prompt: normalizedText),
+      );
+      final responseText = response.text.trim();
+      if (responseText.isEmpty) {
+        throw const AIEmptyResponseException();
+      }
+
+      final assistantMessage = ChatMessageModel(
+        id: 'a${DateTime.now().millisecondsSinceEpoch}',
+        text: responseText,
+        sender: 'ai',
+        time: DateTime.now(),
+      );
+      _messages.add(assistantMessage);
+      return assistantMessage;
+    } on AIServiceException catch (error) {
+      debugPrint(
+        '[AIService] AI service exception: '
+        '${error.runtimeType}: $error',
+      );
+      rethrow;
+    } on TimeoutException {
+      debugPrint('[AIService] Request timed out.');
+      throw const AITimeoutException();
+    } catch (error) {
+      debugPrint(
+        '[AIService] Unexpected exception: '
+        '${error.runtimeType}: $error',
+      );
+      throw const AIUnavailableException();
+    }
   }
 
   List<ChatMessageModel> getMessages() => List.unmodifiable(_messages);
   List<MemoryModel> getMemories() => List.unmodifiable(_memories);
   List<ExerciseModel> getExercises() => List.unmodifiable(_exercises);
   List<InsightModel> getInsights() => List.unmodifiable(_insights);
-
-  String _generateResponse(String text) {
-    if (text.toLowerCase().contains('med')) {
-      return 'Take Amlodipine 5mg in the morning and Metformin 500mg after breakfast.';
-    }
-    if (text.toLowerCase().contains('yesterday')) {
-      return 'Yesterday you had a doctor appointment and took morning medication.';
-    }
-    if (text.toLowerCase().contains('caregiver')) {
-      return 'Would you like me to call Priya Sharma? (mock)';
-    }
-    return 'I\'m ready to help — tell me more.';
-  }
 }
