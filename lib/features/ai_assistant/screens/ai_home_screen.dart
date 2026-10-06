@@ -53,8 +53,8 @@ class _AIHomeScreenState extends State<AIHomeScreen> {
               spacing: 8,
               children: [
                 SuggestionChip(
-                  label: 'What medicines should I take?',
-                  onTap: () => _openChat('What medicines should I take?'),
+                  label: 'Tell me about my medicines',
+                  onTap: () => _openChat('Tell me about my medicines'),
                 ),
                 SuggestionChip(
                   label: 'What happened yesterday?',

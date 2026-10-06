@@ -12,19 +12,24 @@ class ChatBubble extends StatelessWidget {
     final alignment = isUser
         ? CrossAxisAlignment.end
         : CrossAxisAlignment.start;
-    final bg = isUser ? Colors.blue : Theme.of(context).cardColor;
-    final textColor = isUser ? Colors.white : Colors.black87;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bg = isUser ? colorScheme.primary : colorScheme.surface;
+    final textColor = isUser ? colorScheme.onPrimary : colorScheme.onSurface;
     return Column(
       crossAxisAlignment: alignment,
       children: [
         Container(
+          constraints: const BoxConstraints(maxWidth: 560),
           padding: const EdgeInsets.all(12),
           margin: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Text(message.text, style: TextStyle(color: textColor)),
+          child: Text(
+            message.text,
+            style: TextStyle(color: textColor),
+          ),
         ),
         Text(
           message.time != null

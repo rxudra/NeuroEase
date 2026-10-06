@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import '../models/chat_message_model.dart';
 import '../models/memory_model.dart';
 import '../models/exercise_model.dart';
@@ -13,6 +11,14 @@ class AIService {
   final List<MemoryModel> _memories = [];
   final List<ExerciseModel> _exercises = [];
   final List<InsightModel> _insights = [];
+
+  Future<String> generateResponse(
+    String text, {
+    List<ChatMessageModel> history = const [],
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    return _generateResponse(text);
+  }
 
   void initMock() {
     if (_memories.isNotEmpty) return;
@@ -65,11 +71,10 @@ class AIService {
       time: DateTime.now(),
     );
     _messages.add(user);
-    // Simulate thinking
-    await Future.delayed(const Duration(milliseconds: 700));
+    final responseText = await generateResponse(text, history: _messages);
     final response = ChatMessageModel(
       id: 'a${DateTime.now().millisecondsSinceEpoch}',
-      text: _generateResponse(text),
+      text: responseText,
       sender: 'ai',
       time: DateTime.now(),
     );
@@ -78,19 +83,53 @@ class AIService {
   }
 
   List<ChatMessageModel> getMessages() => List.unmodifiable(_messages);
+
+  ChatMessageModel addUserMessage(String text) {
+    final message = ChatMessageModel(
+      id: 'u${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      sender: 'user',
+      time: DateTime.now(),
+    );
+    _messages.add(message);
+    return message;
+  }
+
+  ChatMessageModel addAssistantMessage(String text) {
+    final message = ChatMessageModel(
+      id: 'a${DateTime.now().microsecondsSinceEpoch}',
+      text: text,
+      sender: 'ai',
+      time: DateTime.now(),
+    );
+    _messages.add(message);
+    return message;
+  }
+
+  void clearConversation() => _messages.clear();
   List<MemoryModel> getMemories() => List.unmodifiable(_memories);
   List<ExerciseModel> getExercises() => List.unmodifiable(_exercises);
   List<InsightModel> getInsights() => List.unmodifiable(_insights);
 
   String _generateResponse(String text) {
-    if (text.toLowerCase().contains('med')) {
-      return 'Take Amlodipine 5mg in the morning and Metformin 500mg after breakfast.';
+    final lowerText = text.toLowerCase();
+    if (lowerText.contains('emergency') ||
+        lowerText.contains('can\'t breathe') ||
+        lowerText.contains('cannot breathe') ||
+        lowerText.contains('chest pain')) {
+      return 'If this may be an emergency, contact your local emergency services '
+          'now or ask a trusted person nearby for immediate help. I am not an emergency responder.';
     }
-    if (text.toLowerCase().contains('yesterday')) {
+    if (lowerText.contains('med')) {
+      return 'I can share general information, but I cannot recommend medication or doses. '
+          'Please check your care plan or ask a qualified healthcare professional.';
+    }
+    if (lowerText.contains('yesterday')) {
       return 'Yesterday you had a doctor appointment and took morning medication.';
     }
-    if (text.toLowerCase().contains('caregiver')) {
-      return 'Would you like me to call Priya Sharma? (mock)';
+    if (lowerText.contains('caregiver')) {
+      return 'I cannot contact a caregiver from this chat. Please use the caregiver '
+          'contact options or reach out to a trusted person directly.';
     }
     return 'I\'m ready to help — tell me more.';
   }
