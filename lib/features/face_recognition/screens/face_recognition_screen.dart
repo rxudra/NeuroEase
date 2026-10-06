@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../../vision/camera/device_vision_camera.dart';
@@ -33,7 +34,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen>
 
   static FaceRecognitionController _defaultController() {
     return FaceRecognitionController(
-      camera: DeviceVisionCamera(),
+      camera: DeviceVisionCamera(preferredLens: CameraLensDirection.front),
       detector: MlKitFaceDetectionService(),
     );
   }
@@ -62,12 +63,12 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Face detection')),
+      appBar: AppBar(title: const Text('Face Recognition')),
       body: SafeArea(
         child: VisionScanView<FaceDetectionResult>(
           controller: _controller,
           scanLabel: 'Check for faces',
-          readyMessage: 'Point the camera at a face, then tap the button.',
+          readyMessage: 'Point the camera at your face, then tap the button.',
           scanningMessage: 'Looking for faces…',
           resultBuilder: (context, result) => FaceResultPanel(result: result),
         ),

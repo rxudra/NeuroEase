@@ -11,10 +11,10 @@ void main() {
       final result = FaceDetectionResult.empty();
       expect(result.hasFaces, isFalse);
       expect(result.faceCount, 0);
-      expect(result.summary, 'No face found');
+      expect(result.summary, 'No person detected');
     });
 
-    test('summary uses singular and plural', () {
+    test('summary returns person detected when faces present', () {
       final one = FaceDetectionResult(
         faces: const [DetectedFace(boundingBox: _box)],
         analysedAt: DateTime(2026),
@@ -27,8 +27,8 @@ void main() {
         ],
         analysedAt: DateTime(2026),
       );
-      expect(one.summary, '1 face found');
-      expect(three.summary, '3 faces found');
+      expect(one.summary, '👤 Person detected');
+      expect(three.summary, '👤 Person detected');
       expect(three.hasFaces, isTrue);
     });
   });

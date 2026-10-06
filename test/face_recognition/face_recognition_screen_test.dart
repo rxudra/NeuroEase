@@ -47,7 +47,7 @@ void main() {
     camera.initializeGate = Completer<void>();
     await pumpScreen(tester);
 
-    expect(find.text('Face detection'), findsOneWidget);
+    expect(find.text('Face Recognition'), findsOneWidget);
     expect(find.byKey(const Key('vision-initializing')), findsOneWidget);
     expect(find.text('Starting the camera…'), findsOneWidget);
     expect(find.text('Please wait…'), findsOneWidget);
@@ -59,7 +59,7 @@ void main() {
 
     expect(find.byKey(const Key('fake-camera-preview')), findsOneWidget);
     expect(
-      find.text('Point the camera at a face, then tap the button.'),
+      find.text('Point the camera at your face, then tap the button.'),
       findsOneWidget,
     );
     expect(find.text('Check for faces'), findsOneWidget);
@@ -73,13 +73,13 @@ void main() {
 
     await tapAndSettleScan(tester, 'Check for faces');
 
-    expect(find.text('No face found'), findsOneWidget);
-    expect(find.textContaining('well lit'), findsOneWidget);
+    expect(find.text('No person detected'), findsOneWidget);
+    expect(find.textContaining('Move closer and make sure your face is visible.'), findsOneWidget);
     expect(find.text('Scan again'), findsOneWidget);
     expect(camera.outstandingPhotos, isEmpty);
   });
 
-  testWidgets('one face shows its description', (tester) async {
+  testWidgets('face detected shows person detected and success text', (tester) async {
     detector.faces = const [
       DetectedFace(
         boundingBox: _box,
@@ -91,23 +91,8 @@ void main() {
 
     await tapAndSettleScan(tester, 'Check for faces');
 
-    expect(find.text('1 face found'), findsOneWidget);
-    expect(find.text('Looking at the camera, smiling'), findsOneWidget);
-  });
-
-  testWidgets('many faces are summarised, not all listed', (tester) async {
-    detector.faces = List.generate(
-      5,
-      (_) => const DetectedFace(boundingBox: _box),
-    );
-    await pumpScreen(tester);
-
-    await tapAndSettleScan(tester, 'Check for faces');
-
-    expect(find.text('5 faces found'), findsOneWidget);
-    expect(find.textContaining('Face 3:'), findsOneWidget);
-    expect(find.textContaining('Face 4:'), findsNothing);
-    expect(find.text('and 2 more'), findsOneWidget);
+    expect(find.text('👤 Person detected'), findsOneWidget);
+    expect(find.text('Face detected successfully.'), findsOneWidget);
   });
 
   testWidgets('permission denied shows guidance and recovers on retry', (

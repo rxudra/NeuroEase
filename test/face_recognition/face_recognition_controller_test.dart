@@ -26,7 +26,7 @@ void main() {
 
     expect(controller.status, VisionScanStatus.result);
     expect(controller.result?.hasFaces, isFalse);
-    expect(controller.result?.summary, 'No face found');
+    expect(controller.result?.summary, 'No person detected');
   });
 
   test('faces found are exposed with their details', () async {

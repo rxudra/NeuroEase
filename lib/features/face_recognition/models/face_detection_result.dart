@@ -105,15 +105,13 @@ class FaceDetectionResult {
   int get faceCount => faces.length;
   bool get hasFaces => faces.isNotEmpty;
 
-  /// Headline for the result, e.g. "2 faces found".
+  /// Headline for the result, e.g. "👤 Person detected".
   String get summary {
     switch (faceCount) {
       case 0:
-        return 'No face found';
-      case 1:
-        return '1 face found';
+        return 'No person detected';
       default:
-        return '$faceCount faces found';
+        return '👤 Person detected';
     }
   }
 }
