@@ -19,6 +19,7 @@ dependencies:
 
   # Vision (camera + on-device Google ML Kit). See docs/VISION_FEATURES.md.
   camera: ^0.12.1
+  google_mlkit_face_detection: ^0.15.1
 
 dev_dependencies:
   flutter_test:
