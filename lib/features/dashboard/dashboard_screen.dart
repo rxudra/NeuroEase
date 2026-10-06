@@ -10,6 +10,7 @@ import '../medication/models/medication_model.dart';
 import '../medication/services/medication_service.dart';
 import '../notifications/screens/notification_center_screen.dart';
 import '../health/screens/patient_health_dashboard_screen.dart';
+import '../recognition/recognition_screen.dart';
 import 'widgets/dashboard_widgets.dart';
 import 'widgets/medication_card.dart';
 
@@ -324,6 +325,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             label: 'Schedule',
                             color: AppColors.primaryLight,
                             onTap: () => widget.onSelectTab?.call(3),
+                          ),
+                          DashboardQuickAction(
+                            key: const Key('dashboard-camera-help'),
+                            icon: Icons.photo_camera_outlined,
+                            label: 'Camera help',
+                            color: AppColors.success,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const RecognitionScreen(),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
