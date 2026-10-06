@@ -38,14 +38,17 @@ typedef VisionAnalyser<T> = Future<T> Function(String imagePath);
 class VisionScanController<T> extends ChangeNotifier {
   VisionScanController({
     required this.camera,
-    required VisionAnalyser<T> analyse,
-    Future<void> Function()? onDispose,
-  }) : _analyse = analyse,
-       _onDispose = onDispose;
+    required this.analyse,
+    this.onDispose,
+  });
 
   final VisionCamera camera;
-  final VisionAnalyser<T> _analyse;
-  final Future<void> Function()? _onDispose;
+
+  /// Analyses one temporary photo.
+  final VisionAnalyser<T> analyse;
+
+  /// Releases the analyser's native resources; called from [dispose].
+  final Future<void> Function()? onDispose;
 
   VisionScanStatus _status = VisionScanStatus.idle;
   T? _result;
@@ -116,7 +119,7 @@ class VisionScanController<T> extends ChangeNotifier {
     String? photoPath;
     try {
       photoPath = await camera.capturePhoto();
-      final result = await _analyse(photoPath);
+      final result = await analyse(photoPath);
       if (_disposed) return;
       _result = result;
       _setStatus(VisionScanStatus.result);
@@ -192,7 +195,7 @@ class VisionScanController<T> extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     camera.dispose();
-    _onDispose?.call();
+    onDispose?.call();
     super.dispose();
   }
 }
