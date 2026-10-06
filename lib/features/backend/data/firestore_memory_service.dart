@@ -4,17 +4,30 @@ import '../../ai_assistant/models/memory_model.dart';
 import '../repositories/memory_repository.dart';
 
 class FirestoreMemoryService implements MemoryRepository {
-  FirestoreMemoryService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  FirestoreMemoryService({this._firestore});
 
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
-  CollectionReference<Map<String, dynamic>> _userMemories(String uid) =>
-      _firestore.collection('users').doc(uid).collection('memories');
+  FirebaseFirestore? get _db {
+    if (_firestore != null) return _firestore;
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  CollectionReference<Map<String, dynamic>>? _userMemories(String uid) {
+    final db = _db;
+    if (db == null) return null;
+    return db.collection('users').doc(uid).collection('memories');
+  }
 
   @override
   Stream<List<MemoryModel>> streamForUser(String uid) {
-    return _userMemories(uid)
+    final col = _userMemories(uid);
+    if (col == null) return const Stream.empty();
+    return col
         .orderBy('time', descending: true)
         .snapshots()
         .map(
@@ -27,9 +40,9 @@ class FirestoreMemoryService implements MemoryRepository {
 
   @override
   Future<List<MemoryModel>> getAll(String uid) async {
-    final snap = await _userMemories(
-      uid,
-    ).orderBy('time', descending: true).get();
+    final col = _userMemories(uid);
+    if (col == null) return const [];
+    final snap = await col.orderBy('time', descending: true).get();
     return snap.docs
         .map(
           (d) =>
@@ -40,8 +53,10 @@ class FirestoreMemoryService implements MemoryRepository {
 
   @override
   Future<void> add(String uid, MemoryModel memory) async {
+    final col = _userMemories(uid);
+    if (col == null) return;
     final map = memory.toMap();
-    final docRef = _userMemories(uid).doc(memory.id);
+    final docRef = col.doc(memory.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap['createdAt'] = FieldValue.serverTimestamp();
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
@@ -50,8 +65,10 @@ class FirestoreMemoryService implements MemoryRepository {
 
   @override
   Future<void> update(String uid, MemoryModel memory) async {
+    final col = _userMemories(uid);
+    if (col == null) return;
     final map = memory.toMap();
-    final docRef = _userMemories(uid).doc(memory.id);
+    final docRef = col.doc(memory.id);
     final writeMap = Map<String, dynamic>.from(map);
     writeMap.remove('createdAt');
     writeMap['updatedAt'] = FieldValue.serverTimestamp();
@@ -60,6 +77,8 @@ class FirestoreMemoryService implements MemoryRepository {
 
   @override
   Future<void> delete(String uid, String memoryId) async {
-    await _userMemories(uid).doc(memoryId).delete();
+    final col = _userMemories(uid);
+    if (col == null) return;
+    await col.doc(memoryId).delete();
   }
 }

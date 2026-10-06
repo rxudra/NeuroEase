@@ -13,7 +13,14 @@ class MemoryService {
   static final MemoryService instance = MemoryService._private();
 
   final List<MemoryModel> _memories = [];
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseAuth? get _auth {
+    try {
+      return FirebaseAuth.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
   final MemoryRepository _repo = FirestoreMemoryService();
   StreamSubscription<List<MemoryModel>>? _sub;
 
@@ -27,7 +34,9 @@ class MemoryService {
   }
 
   void _init() {
-    _auth.authStateChanges().listen((user) {
+    final auth = _auth;
+    if (auth == null) return;
+    auth.authStateChanges().listen((user) {
       _sub?.cancel();
       _memories.clear();
 
@@ -46,23 +55,6 @@ class MemoryService {
               },
             );
       } else {
-        // Fallback mock memories for unauthenticated / demo mode
-        _memories.addAll([
-          MemoryModel(
-            id: 'm1',
-            title: "Doctor's appointment",
-            details: 'Scheduled yesterday at 3pm',
-            category: 'Medical',
-            time: DateTime.now().subtract(const Duration(days: 1)),
-          ),
-          MemoryModel(
-            id: 'm2',
-            title: 'Took morning meds',
-            details: 'Amlodipine and Metformin',
-            category: 'Medical',
-            time: DateTime.now().subtract(const Duration(hours: 20)),
-          ),
-        ]);
         _notify();
       }
     });
@@ -79,7 +71,7 @@ class MemoryService {
     }
     _notify();
 
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.add(user.uid, memory);
     }
@@ -94,7 +86,7 @@ class MemoryService {
     }
     _notify();
 
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.update(user.uid, memory);
     }
@@ -104,7 +96,7 @@ class MemoryService {
     _memories.removeWhere((m) => m.id == memoryId);
     _notify();
 
-    final user = _auth.currentUser;
+    final user = _auth?.currentUser;
     if (user != null) {
       await _repo.delete(user.uid, memoryId);
     }
