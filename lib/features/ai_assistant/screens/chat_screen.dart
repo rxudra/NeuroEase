@@ -103,19 +103,32 @@ class _ChatScreenState extends State<ChatScreen> {
               child: TypingIndicator(),
             ),
           if (_assistantController.errorMessage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
                 children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       _assistantController.errorMessage!,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                        fontSize: 13,
                       ),
                     ),
                   ),
-                  TextButton(
+                  const SizedBox(width: 8),
+                  FilledButton.tonal(
                     onPressed: _assistantController.retry,
                     child: const Text('Retry'),
                   ),
@@ -123,28 +136,47 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      decoration: const InputDecoration(
-                        hintText: 'Type a message',
-                        labelText: 'Message',
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          decoration: const InputDecoration(
+                            hintText: 'Type a message',
+                            labelText: 'Message',
+                          ),
+                          textInputAction: TextInputAction.send,
+                          onSubmitted: (_) => _send(),
+                        ),
                       ),
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                    ),
+                      IconButton(
+                        tooltip: 'Send message',
+                        onPressed: _assistantController.isLoading ? null : _send,
+                        icon: const Icon(Icons.send),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    tooltip: 'Send message',
-                    onPressed: _assistantController.isLoading ? null : _send,
-                    icon: const Icon(Icons.send),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(
+                    left: 12,
+                    right: 12,
+                    bottom: 4,
                   ),
-                ],
-              ),
+                  child: Text(
+                    'Medical information is for general guidance only. For emergencies, use Emergency SOS or contact emergency services.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

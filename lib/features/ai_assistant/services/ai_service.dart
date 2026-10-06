@@ -25,14 +25,14 @@ class AIService {
     _memories.addAll([
       MemoryModel(
         id: 'm1',
-        title: "Doctor's appointment",
-        details: 'Scheduled yesterday at 3pm',
+        title: 'Walk in the park',
+        details: 'Enjoyed afternoon walk',
         time: DateTime.now().subtract(const Duration(days: 1)),
       ),
       MemoryModel(
         id: 'm2',
-        title: 'Took morning meds',
-        details: 'Amlodipine and Metformin',
+        title: 'Family Visit',
+        details: 'Visited family members',
         time: DateTime.now().subtract(const Duration(hours: 20)),
       ),
     ]);
@@ -61,25 +61,6 @@ class AIService {
       ),
       InsightModel(id: 'i2', title: 'Memory Trend', value: 'Stable', trend: 0),
     ]);
-  }
-
-  Future<ChatMessageModel> sendMessage(String text) async {
-    final user = ChatMessageModel(
-      id: 'u${DateTime.now().millisecondsSinceEpoch}',
-      text: text,
-      sender: 'user',
-      time: DateTime.now(),
-    );
-    _messages.add(user);
-    final responseText = await generateResponse(text, history: _messages);
-    final response = ChatMessageModel(
-      id: 'a${DateTime.now().millisecondsSinceEpoch}',
-      text: responseText,
-      sender: 'ai',
-      time: DateTime.now(),
-    );
-    _messages.add(response);
-    return response;
   }
 
   List<ChatMessageModel> getMessages() => List.unmodifiable(_messages);
@@ -117,15 +98,15 @@ class AIService {
         lowerText.contains('can\'t breathe') ||
         lowerText.contains('cannot breathe') ||
         lowerText.contains('chest pain')) {
-      return 'If this may be an emergency, contact your local emergency services '
-          'now or ask a trusted person nearby for immediate help. I am not an emergency responder.';
+      return 'If this is an emergency, call 112 for emergency assistance or 108 for medical/ambulance assistance in India. You can also use NeuroEase Emergency SOS or ask a trusted person nearby for immediate help. I am not an emergency responder.';
     }
     if (lowerText.contains('med')) {
       return 'I can share general information, but I cannot recommend medication or doses. '
           'Please check your care plan or ask a qualified healthcare professional.';
     }
     if (lowerText.contains('yesterday')) {
-      return 'Yesterday you had a doctor appointment and took morning medication.';
+      return 'I don\'t have verified information about your activities from yesterday. '
+          'Please check your schedule, memories, or ask your caregiver.';
     }
     if (lowerText.contains('caregiver')) {
       return 'I cannot contact a caregiver from this chat. Please use the caregiver '

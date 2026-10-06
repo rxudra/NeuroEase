@@ -33,13 +33,7 @@ class ChatBubble extends StatelessWidget {
         ),
         Text(
           message.time != null
-              ? message.time!
-                    .toLocal()
-                    .toIso8601String()
-                    .split('T')
-                    .last
-                    .split('.')
-                    .first
+              ? TimeOfDay.fromDateTime(message.time!.toLocal()).format(context)
               : '',
           style: Theme.of(context).textTheme.bodySmall,
         ),

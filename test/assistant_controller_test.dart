@@ -4,6 +4,7 @@ import 'package:app/features/ai_assistant/controllers/assistant_controller.dart'
 import 'package:app/features/ai_assistant/models/chat_message_model.dart';
 import 'package:app/features/ai_assistant/screens/chat_screen.dart';
 import 'package:app/features/ai_assistant/services/ai_service.dart';
+import 'package:app/features/ai_assistant/widgets/chat_bubble.dart';
 
 class _FakeProvider implements AssistantProvider {
   _FakeProvider(this.responses);
@@ -119,5 +120,66 @@ void main() {
     expect(controller.messages, isEmpty);
     expect(find.text('No messages yet'), findsOneWidget);
     controller.dispose();
+  });
+
+  test('AIService returns 112, 108, and Emergency SOS for emergency queries', () async {
+    final response = await service.generateResponse('I have chest pain and can\'t breathe');
+    expect(response, contains('112'));
+    expect(response, contains('108'));
+    expect(response, contains('Emergency SOS'));
+  });
+
+  test('AIService does not recommend drug prescriptions or dosages for medication queries', () async {
+    final response = await service.generateResponse('What medicines should I take?');
+    expect(response, isNot(contains('Amlodipine')));
+    expect(response, isNot(contains('Metformin')));
+    expect(response, isNot(contains('5mg')));
+    expect(response, contains('cannot recommend medication or doses'));
+  });
+
+  test('AIService does not return fabricated patient history for yesterday queries', () async {
+    final response = await service.generateResponse('What happened yesterday?');
+    expect(response, isNot(contains('doctor appointment')));
+    expect(response, isNot(contains('took morning medication')));
+    expect(response, contains("don't have verified information"));
+  });
+
+  testWidgets('renders error banner and Retry button on ChatScreen when request fails', (tester) async {
+    final provider = _FakeProvider([Exception('Network error')]);
+    final controller = AssistantController(
+      service: service,
+      provider: provider,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: ChatScreen(controller: controller)),
+    );
+
+    await controller.send('Help me');
+    await tester.pumpAndSettle();
+
+    expect(find.text(controller.errorMessage!), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
+    controller.dispose();
+  });
+
+  testWidgets('ChatBubble formats message timestamp into readable localized time', (tester) async {
+    final message = ChatMessageModel(
+      id: 'm1',
+      text: 'Hello world',
+      sender: 'user',
+      time: DateTime(2026, 10, 6, 10, 48),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChatBubble(message: message),
+        ),
+      ),
+    );
+
+    expect(find.text('10:48:00'), findsNothing);
+    expect(find.byType(ChatBubble), findsOneWidget);
   });
 }
