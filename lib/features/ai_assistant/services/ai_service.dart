@@ -1,14 +1,24 @@
+import '../../memory/services/memory_service.dart';
 import '../models/chat_message_model.dart';
-import '../models/memory_model.dart';
 import '../models/exercise_model.dart';
 import '../models/insight_model.dart';
+import '../models/memory_model.dart';
 
 class AIService {
-  AIService._private();
+  AIService._private([this._memoryService]);
+
   static final AIService instance = AIService._private();
 
+  /// Creates an instance with a custom [MemoryService] for testing.
+  factory AIService.withMemoryService(MemoryService memoryService) {
+    return AIService._private(memoryService);
+  }
+
+  final MemoryService? _memoryService;
+  MemoryService get _effectiveMemoryService =>
+      _memoryService ?? MemoryService.instance;
+
   final List<ChatMessageModel> _messages = [];
-  final List<MemoryModel> _memories = [];
   final List<ExerciseModel> _exercises = [];
   final List<InsightModel> _insights = [];
 
@@ -21,21 +31,7 @@ class AIService {
   }
 
   void initMock() {
-    if (_memories.isNotEmpty) return;
-    _memories.addAll([
-      MemoryModel(
-        id: 'm1',
-        title: 'Walk in the park',
-        details: 'Enjoyed afternoon walk',
-        time: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      MemoryModel(
-        id: 'm2',
-        title: 'Family Visit',
-        details: 'Visited family members',
-        time: DateTime.now().subtract(const Duration(hours: 20)),
-      ),
-    ]);
+    if (_exercises.isNotEmpty) return;
 
     _exercises.addAll([
       ExerciseModel(
@@ -88,9 +84,66 @@ class AIService {
   }
 
   void clearConversation() => _messages.clear();
-  List<MemoryModel> getMemories() => List.unmodifiable(_memories);
+  List<MemoryModel> getMemories() => _effectiveMemoryService.getMemories();
   List<ExerciseModel> getExercises() => List.unmodifiable(_exercises);
   List<InsightModel> getInsights() => List.unmodifiable(_insights);
+
+  MemoryModel? _findRelevantMemory(String text) {
+    final lowerText = text.toLowerCase();
+    final memories = _effectiveMemoryService.getMemories();
+    if (memories.isEmpty) return null;
+
+    if (lowerText.contains('yesterday')) {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 1));
+      for (final m in memories) {
+        final titleLower = m.title.toLowerCase();
+        final detailsLower = m.details.toLowerCase();
+        if (titleLower.contains('yesterday') ||
+            detailsLower.contains('yesterday')) {
+          return m;
+        }
+        if (m.time != null) {
+          final local = m.time!.toLocal();
+          if (local.year == yesterday.year &&
+              local.month == yesterday.month &&
+              local.day == yesterday.day) {
+            return m;
+          }
+        }
+      }
+      return null;
+    }
+
+    final words = lowerText
+        .split(RegExp(r'\W+'))
+        .where((w) => w.length > 3)
+        .toList();
+
+    for (final memory in memories) {
+      final title = memory.title.toLowerCase();
+      final details = memory.details.toLowerCase();
+      final category = memory.category.toLowerCase();
+      final people = memory.people.map((p) => p.toLowerCase()).join(' ');
+
+      for (final word in words) {
+        if (word == 'remember' ||
+            word == 'happened' ||
+            word == 'what' ||
+            word == 'tell') {
+          continue;
+        }
+        if (title.contains(word) ||
+            details.contains(word) ||
+            category.contains(word) ||
+            people.contains(word)) {
+          return memory;
+        }
+      }
+    }
+
+    return null;
+  }
 
   String _generateResponse(String text) {
     final lowerText = text.toLowerCase();
@@ -104,10 +157,27 @@ class AIService {
       return 'I can share general information, but I cannot recommend medication or doses. '
           'Please check your care plan or ask a qualified healthcare professional.';
     }
+
+    final relevantMemory = _findRelevantMemory(text);
+
     if (lowerText.contains('yesterday')) {
+      if (relevantMemory != null) {
+        final detailsStr = relevantMemory.details.isNotEmpty
+            ? ' (${relevantMemory.details})'
+            : '';
+        return 'According to your memory journal: "${relevantMemory.title}"$detailsStr.';
+      }
       return 'I don\'t have verified information about your activities from yesterday. '
           'Please check your schedule, memories, or ask your caregiver.';
     }
+
+    if (relevantMemory != null) {
+      final detailsStr = relevantMemory.details.isNotEmpty
+          ? ' (${relevantMemory.details})'
+          : '';
+      return 'Found in your memory journal: "${relevantMemory.title}"$detailsStr.';
+    }
+
     if (lowerText.contains('caregiver')) {
       return 'I cannot contact a caregiver from this chat. Please use the caregiver '
           'contact options or reach out to a trusted person directly.';

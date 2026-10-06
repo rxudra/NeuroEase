@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:app/features/ai_assistant/controllers/assistant_controller.dart';
 import 'package:app/features/ai_assistant/models/chat_message_model.dart';
+import 'package:app/features/ai_assistant/models/memory_model.dart';
 import 'package:app/features/ai_assistant/screens/chat_screen.dart';
 import 'package:app/features/ai_assistant/services/ai_service.dart';
 import 'package:app/features/ai_assistant/widgets/chat_bubble.dart';
+import 'package:app/features/memory/services/memory_service.dart';
 
 class _FakeProvider implements AssistantProvider {
   _FakeProvider(this.responses);
@@ -181,5 +183,40 @@ void main() {
 
     expect(find.text('10:48:00'), findsNothing);
     expect(find.byType(ChatBubble), findsOneWidget);
+  });
+
+  test('AIService retrieves actual user memories when asked about yesterday', () async {
+    final memory = MemoryModel(
+      id: 'mem_test_1',
+      title: 'I had very good time yesterday',
+      details: 'he was really good',
+      time: DateTime.now().subtract(const Duration(days: 1)),
+    );
+    await MemoryService.instance.addMemory(memory);
+
+    final response = await service.generateResponse('What happened yesterday?');
+    expect(response, contains('I had very good time yesterday'));
+    expect(response, contains('he was really good'));
+
+    await MemoryService.instance.deleteMemory(memory.id);
+  });
+
+  test('AIService retrieves memory matching keyword query', () async {
+    final memory = MemoryModel(
+      id: 'mem_test_2',
+      title: 'Gardening in the afternoon',
+      details: 'Planted new sunflowers',
+    );
+    await MemoryService.instance.addMemory(memory);
+
+    final response = await service.generateResponse('Tell me about my gardening');
+    expect(response, contains('Gardening in the afternoon'));
+
+    await MemoryService.instance.deleteMemory(memory.id);
+  });
+
+  test('AIService does not fabricate memory when no matching memory exists', () async {
+    final response = await service.generateResponse('What happened yesterday?');
+    expect(response, contains("don't have verified information"));
   });
 }
