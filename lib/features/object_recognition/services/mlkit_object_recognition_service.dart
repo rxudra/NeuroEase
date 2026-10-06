@@ -18,10 +18,10 @@ import 'object_recognition_service.dart';
 /// Both models are bundled with the app; no image leaves the device. This is
 /// the only file in the object feature that imports ML Kit.
 class MlKitObjectRecognitionService implements ObjectRecognitionService {
-  MlKitObjectRecognitionService({double labelThreshold = 0.5})
-    : _labelThreshold = labelThreshold;
+  MlKitObjectRecognitionService({this.labelThreshold = 0.5});
 
-  final double _labelThreshold;
+  /// Labels below this confidence are dropped by ML Kit.
+  final double labelThreshold;
   labeling.ImageLabeler? _labeler;
   detection.ObjectDetector? _detector;
 
@@ -31,7 +31,7 @@ class MlKitObjectRecognitionService implements ObjectRecognitionService {
   ) async {
     final labeler = _labeler ??= labeling.ImageLabeler(
       options: labeling.ImageLabelerOptions(
-        confidenceThreshold: _labelThreshold,
+        confidenceThreshold: labelThreshold,
       ),
     );
     final detector = _detector ??= detection.ObjectDetector(
