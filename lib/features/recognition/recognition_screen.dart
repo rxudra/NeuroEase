@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/spacing.dart';
 import '../../core/widgets/app_cards.dart';
 import '../face_recognition/screens/face_recognition_screen.dart';
+import '../object_recognition/screens/object_recognition_screen.dart';
 
 /// Entry point for the camera-based assistive features.
 class RecognitionScreen extends StatelessWidget {
@@ -26,6 +27,19 @@ class RecognitionScreen extends StatelessWidget {
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => const FaceRecognitionScreen(),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            _RecognitionTile(
+              key: const Key('recognition-tile-object'),
+              icon: Icons.center_focus_strong_outlined,
+              title: 'What is this?',
+              subtitle: 'Point the camera at an object to find out what '
+                  'it is.',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const ObjectRecognitionScreen(),
                 ),
               ),
             ),

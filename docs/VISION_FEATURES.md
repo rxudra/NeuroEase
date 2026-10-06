@@ -57,6 +57,40 @@ operating system's permission dialog briefly makes the app inactive.
 - Shows at most 3 face descriptions, then "and N more", to avoid
   overwhelming the user.
 
+## Object recognition
+
+`lib/features/object_recognition/`
+
+Uses two Google ML Kit on-device models from the same family (no competing
+CV libraries):
+
+- **Image labeling** (`google_mlkit_image_labeling`) names what is in the
+  photo ("Cup", "Chair", "Fruit"; ~400 classes) with a confidence score.
+  This is what the user is told.
+- **Object detection** (`google_mlkit_object_detection`) locates separate
+  objects (bounding boxes) with a coarse category. Its base model only has 5
+  categories ("Fashion good", "Food", "Home good", "Place", "Plant"), which
+  is why it is not used on its own. Used for "N separate objects in view"
+  and kept on `LocatedObject` for future overlays.
+
+Confidence handling (safety):
+
+| Confidence | Shown as |
+|---|---|
+| ≥ 0.8 | "Cup — Very likely (92%)" |
+| 0.6 – 0.8 | "Cup — Likely (66%)" |
+| 0.5 – 0.6 | Never stated as fact. Headline "Not sure what this is", plus at most one "It might be: …" and advice to try again |
+| < 0.5 | Dropped by ML Kit |
+
+At most 3 names are listed. Every result carries a note to double-check
+before relying on it, especially for medicines or food. Thresholds live in
+`ObjectRecognitionResult` / `RecognizedLabel` so Person 5 (AI Safety) can
+tune them in one place.
+
+Upgrading later: for richer object names with boxes, a custom TFLite model
+can be plugged into ML Kit object detection (`LocalObjectDetectorOptions`)
+inside `MlKitObjectRecognitionService` without touching UI or controller.
+
 ## Privacy and security
 
 - All processing is on-device (ML Kit bundled models). No network calls.
@@ -85,6 +119,8 @@ Automated tests (no camera needed) use fakes in `test/support/`:
   controller state machine (permission denied, no camera, processing
   failure, photo always deleted, lifecycle suspend/resume, dispose).
 - `test/face_recognition/` – result model, controller, screen UI states.
+- `test/object_recognition/` – confidence levels/thresholds, sorting,
+  low-confidence handling, no detection, controller, screen UI states.
 - `test/recognition_screen_test.dart` – hub.
 
 The ML Kit service and `DeviceVisionCamera`'s real camera path are **not**
@@ -106,3 +142,14 @@ Run on a real Android phone (and a real iPhone if iOS is shipped):
 8. Leave the screen → camera indicator turns off.
 9. Check the app cache directory after several scans → no leftover photos.
 10. Airplane mode → detection still works (proves on-device).
+
+Object recognition (Camera help → What is this?):
+
+11. Common objects (cup, bottle, chair, phone, fruit) in good light →
+    named with "Very likely"/"Likely".
+12. Blurry or dark photo → "Not sure what this is" / "It might be …",
+    never a confident wrong name.
+13. Blank wall → "Nothing recognised".
+14. Several objects on a table → "N separate objects in view".
+15. First-ever scan offline on Android: models are bundled, so it should
+    still work; confirm no download prompt.
