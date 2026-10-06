@@ -5,9 +5,9 @@ import '../models/object_recognition_result.dart';
 
 /// Shows an object recognition result in plain words.
 ///
-/// Confident labels (max 3) are stated with "Very likely"/"Likely".
-/// Low-confidence labels are never stated as fact: at most one is offered
-/// as "It might be …" with advice to try again.
+/// Confident labels (max 3) are stated with "High confidence"/"Possible match".
+/// Low-confidence or ambiguous detections show "Object not clearly identified"
+/// with clear advice to scan again. No fake percentage probabilities are shown.
 class ObjectResultPanel extends StatelessWidget {
   const ObjectResultPanel({super.key, required this.result});
 
@@ -17,7 +17,6 @@ class ObjectResultPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    final guess = result.tentativeGuess;
 
     return Container(
       key: const Key('object-result-panel'),
@@ -56,29 +55,17 @@ class ObjectResultPanel extends StatelessWidget {
                 key: Key('object-label-${label.name}'),
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Text(
-                  '${label.name} — ${label.confidenceText} '
-                  '(${label.percentText})',
+                  '${label.name} — ${label.confidenceText}',
                   style: textTheme.bodyLarge,
                 ),
               ),
-          ] else if (guess != null) ...[
-            Text(
-              'It might be: ${guess.name}',
-              key: const Key('object-tentative-guess'),
-              style: textTheme.titleMedium,
-            ),
+          ] else ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Try moving closer, adding more light, or holding the object '
-              'still, then scan again.',
+              'Move the object closer, ensure good lighting, and scan again.',
               style: textTheme.bodyLarge,
             ),
-          ] else
-            Text(
-              'Try pointing the camera straight at one object in good light, '
-              'then scan again.',
-              style: textTheme.bodyLarge,
-            ),
+          ],
           if (result.objectCount > 1) ...[
             const SizedBox(height: AppSpacing.sm),
             Text(

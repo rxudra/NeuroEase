@@ -27,22 +27,22 @@ void main() {
 
     expect(controller.status, VisionScanStatus.result);
     expect(controller.result?.isEmpty, isTrue);
-    expect(controller.result?.summary, 'Nothing recognised');
+    expect(controller.result?.summary, 'Object not clearly identified');
   });
 
   test('detections are exposed most confident first', () async {
     recognizer.labels = const [
-      RecognizedLabel(name: 'Table', confidence: 0.7),
+      RecognizedLabel(name: 'Book', confidence: 0.78),
       RecognizedLabel(name: 'Cup', confidence: 0.92),
     ];
     await controller.initialize();
     await controller.scan();
 
     expect(controller.result?.confidentLabels.first.name, 'Cup');
-    expect(controller.result?.summary, 'I can see: Cup and Table');
+    expect(controller.result?.summary, 'I can see: Cup and Book');
   });
 
-  test('low-confidence detections stay tentative', () async {
+  test('low-confidence detections report object not clearly identified', () async {
     recognizer.labels = const [
       RecognizedLabel(name: 'Pill bottle', confidence: 0.55),
     ];
@@ -50,7 +50,7 @@ void main() {
     await controller.scan();
 
     expect(controller.result?.hasConfidentResult, isFalse);
-    expect(controller.result?.tentativeGuess?.name, 'Pill bottle');
+    expect(controller.result?.summary, 'Object not clearly identified');
   });
 
   test('the photo is deleted after recognition', () async {

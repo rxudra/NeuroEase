@@ -82,15 +82,15 @@ void main() {
   ) async {
     recognizer.labels = const [
       RecognizedLabel(name: 'Cup', confidence: 0.92),
-      RecognizedLabel(name: 'Table', confidence: 0.66),
+      RecognizedLabel(name: 'Book', confidence: 0.78),
     ];
     await pumpScreen(tester);
 
     await tapAndWait(tester, 'Identify object');
 
-    expect(find.text('I can see: Cup and Table'), findsOneWidget);
-    expect(find.text('Cup — Very likely (92%)'), findsOneWidget);
-    expect(find.text('Table — Likely (66%)'), findsOneWidget);
+    expect(find.text('I can see: Cup and Book'), findsOneWidget);
+    expect(find.text('Cup — High confidence'), findsOneWidget);
+    expect(find.text('Book — Possible match'), findsOneWidget);
     expect(find.byKey(const Key('object-safety-note')), findsOneWidget);
     expect(find.text('Scan again'), findsOneWidget);
   });
@@ -99,18 +99,18 @@ void main() {
     recognizer.labels = const [
       RecognizedLabel(name: 'Cup', confidence: 0.95),
       RecognizedLabel(name: 'Laptop', confidence: 0.9),
-      RecognizedLabel(name: 'Table', confidence: 0.85),
-      RecognizedLabel(name: 'Desk', confidence: 0.8),
+      RecognizedLabel(name: 'Book', confidence: 0.85),
+      RecognizedLabel(name: 'Pen', confidence: 0.8),
     ];
     await pumpScreen(tester);
 
     await tapAndWait(tester, 'Identify object');
 
-    expect(find.byKey(const Key('object-label-Table')), findsOneWidget);
-    expect(find.byKey(const Key('object-label-Desk')), findsNothing);
+    expect(find.byKey(const Key('object-label-Book')), findsOneWidget);
+    expect(find.byKey(const Key('object-label-Pen')), findsNothing);
   });
 
-  testWidgets('low confidence is shown as a tentative guess only', (
+  testWidgets('low confidence shows object not clearly identified', (
     tester,
   ) async {
     recognizer.labels = const [
@@ -120,8 +120,8 @@ void main() {
 
     await tapAndWait(tester, 'Identify object');
 
-    expect(find.text('Not sure what this is'), findsOneWidget);
-    expect(find.text('It might be: Pill bottle'), findsOneWidget);
+    expect(find.text('Object not clearly identified'), findsOneWidget);
+    expect(find.textContaining('Move the object closer'), findsOneWidget);
     expect(find.textContaining('I can see'), findsNothing);
     expect(find.byKey(const Key('object-safety-note')), findsOneWidget);
   });
@@ -131,13 +131,13 @@ void main() {
 
     await tapAndWait(tester, 'Identify object');
 
-    expect(find.text('Nothing recognised'), findsOneWidget);
-    expect(find.textContaining('good light'), findsOneWidget);
+    expect(find.text('Object not clearly identified'), findsOneWidget);
+    expect(find.textContaining('Move the object closer'), findsOneWidget);
   });
 
   testWidgets('several located objects are counted', (tester) async {
     recognizer.labels = const [
-      RecognizedLabel(name: 'Fruit', confidence: 0.9),
+      RecognizedLabel(name: 'Bottle', confidence: 0.9),
     ];
     recognizer.objects = const [
       LocatedObject(boundingBox: Rect.fromLTWH(0, 0, 10, 10)),

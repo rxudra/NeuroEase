@@ -18,53 +18,63 @@ ObjectRecognitionResult _result(
 
 void main() {
   group('RecognizedLabel', () {
-    test('confidence levels use 0.8 and 0.6 thresholds', () {
-      expect(_label('Cup', 0.8).level, ConfidenceLevel.high);
-      expect(_label('Cup', 0.79).level, ConfidenceLevel.medium);
-      expect(_label('Cup', 0.6).level, ConfidenceLevel.medium);
-      expect(_label('Cup', 0.59).level, ConfidenceLevel.low);
+    test('confidence levels use 0.85 and 0.75 thresholds', () {
+      expect(_label('Cup', 0.85).level, ConfidenceLevel.high);
+      expect(_label('Cup', 0.84).level, ConfidenceLevel.medium);
+      expect(_label('Cup', 0.75).level, ConfidenceLevel.medium);
+      expect(_label('Cup', 0.74).level, ConfidenceLevel.low);
     });
 
-    test('confidence is described in words and as a percentage', () {
-      expect(_label('Cup', 0.92).confidenceText, 'Very likely');
-      expect(_label('Cup', 0.65).confidenceText, 'Likely');
-      expect(_label('Cup', 0.51).confidenceText, 'Not sure');
-      expect(_label('Cup', 0.916).percentText, '92%');
+    test('confidence is described in honest verbal levels', () {
+      expect(_label('Cup', 0.92).confidenceText, 'High confidence');
+      expect(_label('Cup', 0.78).confidenceText, 'Possible match');
+      expect(_label('Cup', 0.51).confidenceText, 'Not clearly identified');
     });
   });
 
   group('ObjectRecognitionResult', () {
-    test('empty result says nothing was recognised', () {
+    test('empty result states object not clearly identified', () {
       final result = ObjectRecognitionResult.empty();
       expect(result.isEmpty, isTrue);
       expect(result.hasConfidentResult, isFalse);
-      expect(result.tentativeGuess, isNull);
-      expect(result.summary, 'Nothing recognised');
+      expect(result.summary, 'Object not clearly identified');
     });
 
-    test('labels are sorted most confident first', () {
+    test('labels are sorted most confident first and mapped', () {
       final result = _result([
-        _label('Table', 0.7),
-        _label('Cup', 0.95),
-        _label('Laptop', 0.8),
+        _label('Chair', 0.78),
+        _label('Mobile phone', 0.95),
+        _label('Laptop', 0.82),
       ]);
-      expect(result.labels.map((l) => l.name), ['Cup', 'Laptop', 'Table']);
+      expect(result.labels.map((l) => l.name), ['Phone', 'Laptop', 'Chair']);
+    });
+
+    test('broad scene labels and weak confidence are filtered out', () {
+      final result = _result([
+        _label('Room', 0.90),
+        _label('Flooring', 0.85),
+        _label('Chair', 0.70),
+        _label('Dog', 0.70),
+      ]);
+      expect(result.hasConfidentResult, isFalse);
+      expect(result.confidentLabels, isEmpty);
+      expect(result.summary, 'Object not clearly identified');
     });
 
     test('summary joins up to three confident names', () {
-      expect(_result([_label('Cup', 0.9)]).summary, 'I can see: Cup');
+      expect(_result([_label('Mobile phone', 0.9)]).summary, 'I can see: Phone');
       expect(
-        _result([_label('Cup', 0.9), _label('Mug', 0.7)]).summary,
-        'I can see: Cup and Mug',
+        _result([_label('Cup', 0.9), _label('Mug', 0.78)]).summary,
+        'I can see: Cup',
       );
       expect(
         _result([
-          _label('Cup', 0.9),
-          _label('Laptop', 0.8),
-          _label('Table', 0.7),
-          _label('Desk', 0.65),
+          _label('Mobile phone', 0.9),
+          _label('Laptop computer', 0.85),
+          _label('Book', 0.78),
+          _label('Pen', 0.76),
         ]).summary,
-        'I can see: Cup, Laptop and Table',
+        'I can see: Phone, Laptop and Book',
       );
     });
 
@@ -72,17 +82,10 @@ void main() {
       final result = _result([_label('Bottle', 0.55), _label('Jar', 0.52)]);
       expect(result.hasConfidentResult, isFalse);
       expect(result.confidentLabels, isEmpty);
-      expect(result.summary, 'Not sure what this is');
-      expect(result.tentativeGuess?.name, 'Bottle');
+      expect(result.summary, 'Object not clearly identified');
     });
 
-    test('no tentative guess when a confident label exists', () {
-      final result = _result([_label('Cup', 0.9), _label('Jar', 0.52)]);
-      expect(result.tentativeGuess, isNull);
-      expect(result.confidentLabels.map((l) => l.name), ['Cup']);
-    });
-
-    test('objects without labels are "not sure", not "nothing"', () {
+    test('objects without labels are handled safely', () {
       final result = _result(
         const [],
         objects: const [
@@ -91,7 +94,7 @@ void main() {
       );
       expect(result.isEmpty, isFalse);
       expect(result.objectCount, 1);
-      expect(result.summary, 'Not sure what this is');
+      expect(result.summary, 'Object not clearly identified');
     });
 
     test('labels list cannot be modified', () {
