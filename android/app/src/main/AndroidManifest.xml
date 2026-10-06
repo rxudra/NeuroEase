@@ -1,5 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Camera for on-device face/object detection (asked at runtime). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Not required: the rest of the app works on devices without a camera. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <application
         android:label="app"
         android:name="${applicationName}"
