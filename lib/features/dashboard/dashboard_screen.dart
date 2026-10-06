@@ -7,6 +7,7 @@ import '../auth/auth_gate.dart';
 import '../auth/auth_service.dart';
 import '../emergency/screens/emergency_home_screen.dart';
 import '../face_recognition/screens/face_recognition_screen.dart';
+import '../object_recognition/screens/object_recognition_screen.dart';
 import '../medication/models/medication_model.dart';
 import '../medication/services/medication_service.dart';
 import '../notifications/screens/notification_center_screen.dart';
@@ -336,6 +337,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => const FaceRecognitionScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                          DashboardQuickAction(
+                            key: const Key('dashboard-quick-action-find-object'),
+                            icon: Icons.center_focus_strong,
+                            label: 'Find an Object',
+                            color: AppColors.tertiary,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const ObjectRecognitionScreen(),
                                 ),
                               );
                             },

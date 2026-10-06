@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('recognition hub lists face detection and the privacy note', (
+  testWidgets('recognition hub lists face detection, object recognition and privacy note', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: RecognitionScreen()));
@@ -11,6 +11,8 @@ void main() {
     expect(find.text('Camera help'), findsOneWidget);
     expect(find.byKey(const Key('recognition-tile-face')), findsOneWidget);
     expect(find.text('Face detection'), findsOneWidget);
+    expect(find.byKey(const Key('recognition-tile-object')), findsOneWidget);
+    expect(find.text('Find an Object'), findsOneWidget);
     expect(find.textContaining('Nothing is saved or uploaded'), findsOneWidget);
   });
 }
