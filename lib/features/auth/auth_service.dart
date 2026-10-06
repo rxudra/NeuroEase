@@ -5,16 +5,25 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? auth, FirebaseFirestore? firestore})
-    : _auth = auth ?? FirebaseAuth.instance,
-      _firestore = firestore ?? FirebaseFirestore.instance;
+    : _customAuth = auth,
+      _customFirestore = firestore;
 
-  final FirebaseAuth _auth;
-  final FirebaseFirestore _firestore;
+  final FirebaseAuth? _customAuth;
+  final FirebaseFirestore? _customFirestore;
+
+  FirebaseAuth get auth => _customAuth ?? FirebaseAuth.instance;
+  FirebaseFirestore get firestore => _customFirestore ?? FirebaseFirestore.instance;
 
   static final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static bool _googleInitialized = false;
 
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser {
+    try {
+      return auth.currentUser;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<User> signUp({
     required String fullName,
@@ -28,7 +37,7 @@ class AuthService {
       debugPrint("========== SIGN UP STARTED ==========");
       debugPrint("Email: $email");
 
-      final credential = await _auth.createUserWithEmailAndPassword(
+      final credential = await auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
@@ -102,7 +111,7 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final credential = await _auth.signInWithEmailAndPassword(
+    final credential = await auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -120,14 +129,14 @@ class AuthService {
   }
 
   Future<void> sendPasswordResetEmail(String email) {
-    return _auth.sendPasswordResetEmail(email: email.trim());
+    return auth.sendPasswordResetEmail(email: email.trim());
   }
 
   Future<User> signInWithGoogle() async {
     final UserCredential credential;
 
     if (kIsWeb) {
-      credential = await _auth.signInWithPopup(GoogleAuthProvider());
+      credential = await auth.signInWithPopup(GoogleAuthProvider());
     } else {
       await _ensureGoogleInitialized();
 
@@ -150,7 +159,7 @@ class AuthService {
         );
       }
 
-      credential = await _auth.signInWithCredential(
+      credential = await auth.signInWithCredential(
         GoogleAuthProvider.credential(idToken: idToken),
       );
     }
@@ -176,7 +185,7 @@ class AuthService {
       await _googleSignIn.signOut();
     }
 
-    await _auth.signOut();
+    await auth.signOut();
   }
 
   Future<void> _ensureGoogleInitialized() async {
@@ -196,7 +205,7 @@ class AuthService {
     required String provider,
     String role = 'patient',
   }) async {
-    final document = _firestore.collection('users').doc(user.uid);
+    final document = firestore.collection('users').doc(user.uid);
 
     final snapshot = await document.get();
     final validRole = (role == 'caregiver') ? 'caregiver' : 'patient';
@@ -221,7 +230,7 @@ class AuthService {
   Future<String> getUserRole(String uid) async {
     if (uid.trim().isEmpty) return 'patient';
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
+      final doc = await firestore.collection('users').doc(uid).get();
       if (!doc.exists || doc.data() == null) return 'patient';
       final role = doc.data()?['role'] as String?;
       if (role == 'caregiver') return 'caregiver';
