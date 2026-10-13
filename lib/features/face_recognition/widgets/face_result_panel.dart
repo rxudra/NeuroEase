@@ -37,6 +37,7 @@ class FaceResultPanel extends StatelessWidget {
               Expanded(
                 child: Text(
                   result.summary,
+                  key: const Key('face-result-summary'),
                   style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -46,10 +47,12 @@ class FaceResultPanel extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            result.hasFaces
-                ? 'Face detected successfully.'
-                : 'Move closer and make sure your face is visible.',
-            style: textTheme.bodyLarge,
+            result.subtitle,
+            key: const Key('face-result-subtitle'),
+            style: textTheme.bodyLarge?.copyWith(
+              fontWeight: result.isKnownPerson ? FontWeight.w600 : FontWeight.normal,
+              color: result.isKnownPerson ? scheme.primary : scheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

@@ -1,5 +1,7 @@
 import 'dart:ui' show Offset, Rect;
 
+import 'enrolled_person.dart';
+
 /// Facial landmarks NeuroEase exposes. Independent of the ML library so the
 /// rest of the app never imports ML Kit types.
 enum FaceLandmarkPoint {
@@ -16,10 +18,6 @@ enum FaceLandmarkPoint {
 }
 
 /// One face found in a photo.
-///
-/// Holds geometry and simple expression estimates only. It contains no image
-/// data and no identity information, and it is deliberately not serialisable:
-/// face data is processed on-device and never stored or uploaded.
 class DetectedFace {
   const DetectedFace({
     required this.boundingBox,
@@ -93,25 +91,52 @@ class DetectedFace {
 
 /// Outcome of checking one photo for faces.
 class FaceDetectionResult {
-  const FaceDetectionResult({required this.faces, required this.analysedAt});
+  const FaceDetectionResult({
+    required this.faces,
+    required this.analysedAt,
+    this.matchedPerson,
+  });
 
   FaceDetectionResult.empty({DateTime? analysedAt})
     : faces = const [],
+      matchedPerson = null,
       analysedAt = analysedAt ?? DateTime.now();
 
   final List<DetectedFace> faces;
+  final EnrolledPerson? matchedPerson;
   final DateTime analysedAt;
 
   int get faceCount => faces.length;
   bool get hasFaces => faces.isNotEmpty;
+  bool get isKnownPerson => matchedPerson != null;
 
-  /// Headline for the result, e.g. "👤 Person detected".
+  /// Headline for the result:
+  /// - Known match: "Hello, [Name]"
+  /// - Unconfirmed match: "Person detected"
+  /// - No face: "No person detected"
   String get summary {
-    switch (faceCount) {
-      case 0:
-        return 'No person detected';
-      default:
-        return '👤 Person detected';
+    final person = matchedPerson;
+    if (person != null) {
+      return 'Hello, ${person.name}';
     }
+    if (hasFaces) {
+      return 'Person detected';
+    }
+    return 'No person detected';
+  }
+
+  /// Subtitle for the result panel:
+  /// - Known match: "[Saved relationship]"
+  /// - Unconfirmed match: "Identity not confirmed"
+  /// - No face: "Move closer and make sure your face is visible."
+  String get subtitle {
+    final person = matchedPerson;
+    if (person != null) {
+      return person.relationship;
+    }
+    if (hasFaces) {
+      return 'Identity not confirmed';
+    }
+    return 'Move closer and make sure your face is visible.';
   }
 }

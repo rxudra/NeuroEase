@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:app/features/face_recognition/controllers/face_recognition_controller.dart';
+import 'package:app/features/face_recognition/models/enrolled_person.dart';
 import 'package:app/features/face_recognition/models/face_detection_result.dart';
 import 'package:app/features/face_recognition/screens/face_recognition_screen.dart';
 import 'package:app/features/vision/vision_failure.dart';
@@ -30,6 +31,7 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
     await tester.pump();
   }
 
@@ -91,8 +93,31 @@ void main() {
 
     await tapAndSettleScan(tester, 'Check for faces');
 
-    expect(find.text('👤 Person detected'), findsOneWidget);
-    expect(find.text('Face detected successfully.'), findsOneWidget);
+    expect(find.text('Person detected'), findsOneWidget);
+    expect(find.text('Identity not confirmed'), findsOneWidget);
+  });
+
+  testWidgets('known matched person shows greeting and relationship', (tester) async {
+    final person = EnrolledPerson(
+      id: 'p1',
+      name: 'Priya',
+      relationship: 'Mom',
+      enrolledAt: DateTime(2026),
+    );
+    detector.faces = const [
+      DetectedFace(
+        boundingBox: _box,
+        headTurnDegrees: 0,
+        smilingProbability: 0.9,
+      ),
+    ];
+    detector.matchedPerson = person;
+    await pumpScreen(tester);
+
+    await tapAndSettleScan(tester, 'Check for faces');
+
+    expect(find.text('Hello, Priya'), findsOneWidget);
+    expect(find.text('Mom'), findsOneWidget);
   });
 
   testWidgets('permission denied shows guidance and recovers on retry', (

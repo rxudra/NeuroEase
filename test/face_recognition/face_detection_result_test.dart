@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:app/features/face_recognition/models/enrolled_person.dart';
 import 'package:app/features/face_recognition/models/face_detection_result.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,9 +28,27 @@ void main() {
         ],
         analysedAt: DateTime(2026),
       );
-      expect(one.summary, '👤 Person detected');
-      expect(three.summary, '👤 Person detected');
+      expect(one.summary, 'Person detected');
+      expect(one.subtitle, 'Identity not confirmed');
+      expect(three.summary, 'Person detected');
       expect(three.hasFaces, isTrue);
+    });
+
+    test('summary and subtitle for known matched person', () {
+      final person = EnrolledPerson(
+        id: 'p1',
+        name: 'Alice',
+        relationship: 'Mom',
+        enrolledAt: DateTime(2026),
+      );
+      final matched = FaceDetectionResult(
+        faces: const [DetectedFace(boundingBox: _box)],
+        matchedPerson: person,
+        analysedAt: DateTime(2026),
+      );
+      expect(matched.summary, 'Hello, Alice');
+      expect(matched.subtitle, 'Mom');
+      expect(matched.isKnownPerson, isTrue);
     });
   });
 

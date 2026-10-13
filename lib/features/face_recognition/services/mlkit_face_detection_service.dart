@@ -6,21 +6,25 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart'
 import '../../vision/vision_failure.dart';
 import '../models/face_detection_result.dart';
 import 'face_detection_service.dart';
+import 'face_enrollment_service.dart';
 
 /// [FaceDetectionService] using Google ML Kit's on-device face detector.
 ///
 /// The bundled model runs locally; no image is sent to any server. This is
 /// the only file in the face feature that imports ML Kit.
 class MlKitFaceDetectionService implements FaceDetectionService {
-  MlKitFaceDetectionService({double minFaceSize = 0.15})
-    : _options = mlkit.FaceDetectorOptions(
-        enableLandmarks: true,
-        enableClassification: true,
-        performanceMode: mlkit.FaceDetectorMode.accurate,
-        minFaceSize: minFaceSize,
-      );
+  MlKitFaceDetectionService({
+    double minFaceSize = 0.15,
+    this.enrollmentService,
+  })  : _options = mlkit.FaceDetectorOptions(
+          enableLandmarks: true,
+          enableClassification: true,
+          performanceMode: mlkit.FaceDetectorMode.accurate,
+          minFaceSize: minFaceSize,
+        );
 
   final mlkit.FaceDetectorOptions _options;
+  final FaceEnrollmentService? enrollmentService;
   mlkit.FaceDetector? _detector;
 
   static const Map<mlkit.FaceLandmarkType, FaceLandmarkPoint> _landmarkMap = {
@@ -43,8 +47,14 @@ class MlKitFaceDetectionService implements FaceDetectionService {
       final faces = await detector.processImage(
         mlkit.InputImage.fromFilePath(imagePath),
       );
+      final detectedFaces = faces.map(_toDetectedFace).toList(growable: false);
+      final matched = detectedFaces.isNotEmpty
+          ? enrollmentService?.matchFace(detectedFaces.first)
+          : null;
+
       return FaceDetectionResult(
-        faces: faces.map(_toDetectedFace).toList(growable: false),
+        faces: detectedFaces,
+        matchedPerson: matched,
         analysedAt: DateTime.now(),
       );
     } catch (e) {
